@@ -72,9 +72,14 @@ func indexUpdate(typeName, indexName string, index Index, tx *badger.Txn, key []
 	}
 
 	if err != badger.ErrKeyNotFound {
-		item.Value(func(iVal []byte) error {
-			return decode(iVal, &indexValue)
-		})
+		iVal, err := item.Value()
+		if err != nil {
+			return err
+		}
+		err = decode(iVal, &indexValue)
+		if err != nil {
+			return err
+		}
 	}
 
 	if delete {

@@ -13,14 +13,16 @@ import (
 
 // Store is a badgerhold wrapper around a badger DB
 type Store struct {
-	db *badger.DB
+	db               *badger.DB
+	sequenceBandwith uint64
 }
 
 // Options allows you set different options from the defaults
 // For example the encoding and decoding funcs which default to Gob
 type Options struct {
-	Encoder EncodeFunc
-	Decoder DecodeFunc
+	Encoder          EncodeFunc
+	Decoder          DecodeFunc
+	SequenceBandwith uint64
 	badger.Options
 }
 
@@ -37,9 +39,9 @@ func Open(options Options) (*Store, error) {
 	}
 
 	return &Store{
-		db: db,
+		db:               db,
+		sequenceBandwith: options.SequenceBandwith,
 	}, nil
-	return nil, nil
 }
 
 // set any unspecified options to defaults
@@ -53,6 +55,10 @@ func defaultOptions(options *Options) {
 	}
 	if options.Decoder == nil {
 		options.Decoder = DefaultDecode
+	}
+
+	if options.SequenceBandwith == 0 {
+		options.SequenceBandwith = 100
 	}
 }
 
@@ -117,7 +123,6 @@ func (s *Store) Close() error {
 // 				return err
 // 			}
 // 		}
-
 // 		return nil
 // 	})
 // }
@@ -217,4 +222,21 @@ func newStorer(dataType interface{}) Storer {
 	}
 
 	return storer
+}
+
+// prefixKey returns the key prefixed with the type used to store types separately in the same badger DB
+func prefixKey(typeName string, key []byte) []byte {
+	return append([]byte(typeName), key...)
+}
+
+func (s *Store) getSequence(typeName string) (uint64, error) {
+	seq, err := s.Badger().GetSequence([]byte(typeName), s.sequenceBandwith)
+	if err != nil {
+		return err
+	}
+	defer seq.Release()
+
+	// FIXME: I don't believe this is safe to call concurrently. I'll need to store these sequences and Release them
+	// all on store.Close()
+	return seq.Next()
 }

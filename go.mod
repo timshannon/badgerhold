@@ -2,6 +2,7 @@ module github.com/timshannon/badgerhold
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7 // indirect
+	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/cosiner/argv v0.0.1 // indirect
 	github.com/derekparker/delve v1.1.0 // indirect
 	github.com/dgraph-io/badger v1.5.4
