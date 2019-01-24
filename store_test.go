@@ -26,8 +26,14 @@ func TestOpen(t *testing.T) {
 		t.Fatalf("store is null!")
 	}
 
-	defer store.Close()
-	defer os.RemoveAll(opt.Dir)
+	err = store.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.RemoveAll(opt.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestBadger(t *testing.T) {
@@ -145,12 +151,12 @@ func TestAlternateEncoding(t *testing.T) {
 	opt.Encoder = json.Marshal
 	opt.Decoder = json.Unmarshal
 	store, err := badgerhold.Open(opt)
-	defer store.Close()
-	defer os.RemoveAll(opt.Dir)
 
 	if err != nil {
 		t.Fatalf("Error opening %s: %s", opt.Dir, err)
 	}
+	defer os.RemoveAll(opt.Dir)
+	defer store.Close()
 
 	insertTestData(t, store)
 
@@ -180,12 +186,12 @@ func TestGetUnknownType(t *testing.T) {
 	opt.Encoder = json.Marshal
 	opt.Decoder = json.Unmarshal
 	store, err := badgerhold.Open(opt)
-	defer store.Close()
-	defer os.RemoveAll(opt.Dir)
-
 	if err != nil {
 		t.Fatalf("Error opening %s: %s", opt.Dir, err)
 	}
+
+	defer os.RemoveAll(opt.Dir)
+	defer store.Close()
 
 	type test struct {
 		Test string
@@ -212,10 +218,15 @@ func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {
 		t.Fatalf("Error opening %s: %s", opt.Dir, err)
 	}
 
-	defer store.Close()
-	defer os.RemoveAll(opt.Dir)
-
 	tests(store, t)
+	err = store.Close()
+	if err != nil {
+		t.Fatalf("Error closing store: %s", err)
+	}
+	err = os.RemoveAll(opt.Dir)
+	if err != nil {
+		t.Fatalf("Error cleaning up store dir %s: %s", opt.Dir, err)
+	}
 }
 
 // tempdir returns a temporary dir path.
