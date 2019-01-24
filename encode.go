@@ -44,3 +44,19 @@ func DefaultDecode(data []byte, value interface{}) error {
 
 	return de.Decode(value)
 }
+
+// encodeKey encodes key values with a type prefix which allows multiple different types
+// to exist in the badger DB
+func encodeKey(key interface{}, typeName string) ([]byte, error) {
+	encoded, err := encode(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(typePrefix(typeName), encoded...), nil
+}
+
+// decodeKey decodes the key value and removes the type prefix
+func decodeKey(data []byte, key interface{}, typeName string) error {
+	return decode(data[len(typePrefix(typeName)):], key)
+}

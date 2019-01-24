@@ -25,27 +25,20 @@ func (s *Store) Get(key, result interface{}) error {
 func (s *Store) TxGet(tx *badger.Txn, key, result interface{}) error {
 	storer := newStorer(result)
 
-	gk, err := encode(key)
+	gk, err := encodeKey(key, storer.Type())
 
 	if err != nil {
 		return err
 	}
 
-	// bkt := tx.Bucket([]byte(storer.Type()))
-	// if bkt == nil {
-	// 	return ErrNotFound
-	// }
-
-	item, err := tx.Get(prefixKey(storer.Type(), gk))
+	item, err := tx.Get(gk)
 	if err == badger.ErrKeyNotFound {
 		return ErrNotFound
 	}
 
-	value, err := item.Value()
-	if err != nil {
-		return err
-	}
-	return decode(value, result)
+	return item.Value(func(value []byte) error {
+		return decode(value, result)
+	})
 }
 
 // Find retrieves a set of values from the badgerhold that matches the passed in query

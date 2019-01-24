@@ -26,6 +26,12 @@ type Options struct {
 	badger.Options
 }
 
+var DefaultOptions = Options{
+	Options: badger.DefaultOptions,
+	Encoder: DefaultEncode,
+	Decoder: DefaultDecode,
+}
+
 // Open opens or creates a badgerhold file.
 func Open(options Options) (*Store, error) {
 	defaultOptions(&options)
@@ -127,29 +133,29 @@ func (s *Store) Close() error {
 // 	})
 // }
 
-// // RemoveIndex removes an index from the store.
-func (s *Store) RemoveIndex(dataType interface{}, indexName string) error {
-	return s.Badger().Update(func(tx *badger.Txn) error {
-		return s.removeIndex(tx, dataType, indexName)
-	})
-}
+// RemoveIndex removes an index from the store.
+// func (s *Store) RemoveIndex(dataType interface{}, indexName string) error {
+// 	return s.Badger().Update(func(tx *badger.Txn) error {
+// 		return s.removeIndex(tx, dataType, indexName)
+// 	})
+// }
 
-func (s *Store) removeIndex(tx *badger.Txn, dataType interface{}, indexName string) error {
-	storer := newStorer(dataType)
-	opts := badger.DefaultIteratorOptions
-	opts.PrefetchValues = false
-	it := tx.NewIterator(opts)
-	defer it.Close()
-	prefix := indexKeyPrefix(storer.Type(), indexName)
-	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-		item := it.Item()
-		err := tx.Delete(item.Key())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// func (s *Store) removeIndex(tx *badger.Txn, dataType interface{}, indexName string) error {
+// 	storer := newStorer(dataType)
+// 	opts := badger.DefaultIteratorOptions
+// 	opts.PrefetchValues = false
+// 	it := tx.NewIterator(opts)
+// 	defer it.Close()
+// 	prefix := indexKeyPrefix(storer.Type(), indexName)
+// 	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+// 		item := it.Item()
+// 		err := tx.Delete(item.Key())
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
 
 // Storer is the Interface to implement to skip reflect calls on all data passed into the badgerhold
 type Storer interface {
@@ -224,19 +230,18 @@ func newStorer(dataType interface{}) Storer {
 	return storer
 }
 
-// prefixKey returns the key prefixed with the type used to store types separately in the same badger DB
-func prefixKey(typeName string, key []byte) []byte {
-	return append([]byte(typeName), key...)
-}
-
 func (s *Store) getSequence(typeName string) (uint64, error) {
 	seq, err := s.Badger().GetSequence([]byte(typeName), s.sequenceBandwith)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer seq.Release()
 
-	// FIXME: I don't believe this is safe to call concurrently. I'll need to store these sequences and Release them
-	// all on store.Close()
+	// FIXME: I don't believe this is safe to call concurrently. I'll need to store these sequences and Release
+	// them all on store.Close()
 	return seq.Next()
+}
+
+func typePrefix(typeName string) []byte {
+	return []byte("bh_" + typeName)
 }

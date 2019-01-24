@@ -42,6 +42,7 @@ func (s *Store) Insert(key, data interface{}) error {
 // TxInsert is the same as Insert except it allows you specify your own transaction
 func (s *Store) TxInsert(tx *badger.Txn, key, data interface{}) error {
 	storer := newStorer(data)
+	var err error
 
 	if _, ok := key.(sequence); ok {
 		key, err = s.getSequence(storer.Type())
@@ -50,13 +51,11 @@ func (s *Store) TxInsert(tx *badger.Txn, key, data interface{}) error {
 		}
 	}
 
-	gk, err := encode(key)
+	gk, err := encodeKey(key, storer.Type())
 
 	if err != nil {
 		return err
 	}
-
-	gk = prefixKey(storer.Type(), gk)
 
 	_, err = tx.Get(gk)
 	if err != badger.ErrKeyNotFound {
@@ -123,31 +122,29 @@ func (s *Store) Update(key interface{}, data interface{}) error {
 func (s *Store) TxUpdate(tx *badger.Txn, key interface{}, data interface{}) error {
 	storer := newStorer(data)
 
-	gk, err := encode(key)
+	gk, err := encodeKey(key, storer.Type())
 
 	if err != nil {
 		return err
 	}
 
-	b, err := tx.CreateBucketIfNotExists([]byte(storer.Type()))
-	if err != nil {
-		return err
-	}
-
-	existing := b.Get(gk)
-
-	if existing == nil {
+	existingItem, err := tx.Get(gk)
+	if err == badger.ErrKeyNotFound {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 
 	// delete any existing indexes
 	existingVal := reflect.New(reflect.TypeOf(data)).Interface()
 
-	err = decode(existing, existingVal)
+	err = existingItem.Value(func(existing []byte) error {
+		return decode(existing, existingVal)
+	})
 	if err != nil {
 		return err
 	}
-
 	err = indexDelete(storer, tx, gk, existingVal)
 	if err != nil {
 		return err
@@ -159,7 +156,7 @@ func (s *Store) TxUpdate(tx *badger.Txn, key interface{}, data interface{}) erro
 	}
 
 	// put data
-	err = b.Put(gk, value)
+	err = tx.Set(gk, value)
 	if err != nil {
 		return err
 	}
@@ -180,13 +177,11 @@ func (s *Store) Upsert(key interface{}, data interface{}) error {
 func (s *Store) TxUpsert(tx *badger.Txn, key interface{}, data interface{}) error {
 	storer := newStorer(data)
 
-	gk, err := encode(key)
+	gk, err := encodeKey(key, storer.Type())
 
 	if err != nil {
 		return err
 	}
-
-	gk = prefixKey(storer.Type(), gk)
 
 	existingItem, err := tx.Get(gk)
 
@@ -195,11 +190,9 @@ func (s *Store) TxUpsert(tx *badger.Txn, key interface{}, data interface{}) erro
 		// delete any existing indexes
 		existingVal := reflect.New(reflect.TypeOf(data)).Interface()
 
-		existing, err := existingItem.Value()
-		if err != nil {
-			return err
-		}
-		err = decode(existing, existingVal)
+		err = existingItem.Value(func(existing []byte) error {
+			return decode(existing, existingVal)
+		})
 		if err != nil {
 			return err
 		}
