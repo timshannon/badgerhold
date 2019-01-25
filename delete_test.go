@@ -49,6 +49,10 @@ func TestDeleteMatching(t *testing.T) {
 
 				err := store.DeleteMatching(&ItemTest{}, tst.query)
 				if err != nil {
+					if tst.writeError {
+						// error is expected on this test
+						return
+					}
 					t.Fatalf("Error deleting data from badgerhold: %s", err)
 				}
 

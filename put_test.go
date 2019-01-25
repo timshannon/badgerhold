@@ -235,6 +235,10 @@ func TestUpdateMatching(t *testing.T) {
 				})
 
 				if err != nil {
+					if tst.writeError {
+						// error is expected
+						return
+					}
 					t.Fatalf("Error updating data from badgerhold: %s", err)
 				}
 

@@ -30,6 +30,9 @@ func (s *Store) TxDelete(tx *badger.Txn, key, dataType interface{}) error {
 	value := reflect.New(reflect.TypeOf(dataType)).Interface()
 
 	item, err := tx.Get(gk)
+	if err == badger.ErrKeyNotFound {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}

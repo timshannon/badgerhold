@@ -47,6 +47,7 @@ type Query struct {
 	dataType reflect.Type
 	tx       *badger.Txn
 	iterator *badger.Iterator
+	writable bool // if the query is part of a writable transaction
 
 	limit   int
 	skip    int
@@ -332,9 +333,10 @@ type MatchFunc func(ra *RecordAccess) (bool, error)
 // RecordAccess allows access to the current record, field or allows running a subquery within a
 // MatchFunc
 type RecordAccess struct {
-	tx     *badger.Txn
-	record interface{}
-	field  interface{}
+	tx        *badger.Txn
+	record    interface{}
+	field     interface{}
+	writeable bool
 }
 
 // Field is the current field being queried
@@ -350,16 +352,19 @@ func (r *RecordAccess) Record() interface{} {
 // SubQuery allows you to run another query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubQuery(result interface{}, query *Query) error {
-	// FIXME: Badger only allows 1 iterator on RW transactions
-	// Either don't allow subqueries in Put / Delete queries
-	// or start a new read transaction for subqueries and run subquery outside
-	// of the RW transaction
+	if r.writeable {
+		return fmt.Errorf("Subqueries are currently not supported from within writable transactions")
+	}
 	return findQuery(r.tx, result, query)
 }
 
 // SubAggregateQuery allows you to run another aggregate query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubAggregateQuery(query *Query, groupBy ...string) ([]*AggregateResult, error) {
+	if r.writeable {
+		return nil, fmt.Errorf("Subqueries are currently not supported from within writable transactions")
+	}
+
 	return aggregateQuery(r.tx, r.record, query, groupBy...)
 }
 
@@ -423,9 +428,10 @@ func (c *Criterion) test(testValue interface{}, encoded bool, keyType string, cu
 		return c.value.(*regexp.Regexp).Match([]byte(fmt.Sprintf("%s", value))), nil
 	case fn:
 		return c.value.(MatchFunc)(&RecordAccess{
-			field:  value,
-			record: currentRow,
-			tx:     c.query.tx,
+			field:     value,
+			record:    currentRow,
+			tx:        c.query.tx,
+			writeable: c.query.writable,
 		})
 	case isnil:
 		return reflect.ValueOf(value).IsNil(), nil
@@ -626,6 +632,7 @@ func runQuery(tx *badger.Txn, dataType interface{}, query *Query, retrievedKeys 
 	}
 
 	if len(query.ors) > 0 {
+		iter.Close()
 		for i := range newKeys {
 			retrievedKeys.add(newKeys[i])
 		}
@@ -755,6 +762,7 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 		query = &Query{}
 	}
 
+	query.writable = false
 	resultVal := reflect.ValueOf(result)
 	if resultVal.Kind() != reflect.Ptr || resultVal.Elem().Kind() != reflect.Slice {
 		panic("result argument must be a slice address")
@@ -818,6 +826,7 @@ func deleteQuery(tx *badger.Txn, dataType interface{}, query *Query) error {
 	if query == nil {
 		query = &Query{}
 	}
+	query.writable = true
 
 	var records []*record
 
@@ -854,6 +863,8 @@ func updateQuery(tx *badger.Txn, dataType interface{}, query *Query, update func
 	if query == nil {
 		query = &Query{}
 	}
+
+	query.writable = true
 
 	var records []*record
 
@@ -909,6 +920,7 @@ func aggregateQuery(tx *badger.Txn, dataType interface{}, query *Query, groupBy 
 		query = &Query{}
 	}
 
+	query.writable = false
 	var result []*AggregateResult
 
 	if len(groupBy) == 0 {
