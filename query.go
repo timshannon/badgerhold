@@ -46,6 +46,7 @@ type Query struct {
 	badIndex bool
 	dataType reflect.Type
 	tx       *badger.Txn
+	iterator *badger.Iterator
 
 	limit   int
 	skip    int
@@ -212,7 +213,7 @@ func (q *Query) matchesAllFields(key []byte, value reflect.Value, currentRow int
 	}
 
 	for field, criteria := range q.fieldCriteria {
-		if field == q.index && !q.badIndex {
+		if field == q.index && !q.badIndex && !hasMatchFunc(criteria) {
 			// already handled by index Iterator
 			continue
 		}
@@ -349,6 +350,10 @@ func (r *RecordAccess) Record() interface{} {
 // SubQuery allows you to run another query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubQuery(result interface{}, query *Query) error {
+	// FIXME: Badger only allows 1 iterator on RW transactions
+	// Either don't allow subqueries in Put / Delete queries
+	// or start a new read transaction for subqueries and run subquery outside
+	// of the RW transaction
 	return findQuery(r.tx, result, query)
 }
 
@@ -361,7 +366,8 @@ func (r *RecordAccess) SubAggregateQuery(query *Query, groupBy ...string) ([]*Ag
 // MatchFunc will test if a field matches the passed in function
 func (c *Criterion) MatchFunc(match MatchFunc) *Query {
 	if c.query.currentField == Key {
-		panic("Match func cannot be used against Keys, as the Key type is unknown at runtime, and there is no value compare against")
+		panic("Match func cannot be used against Keys, as the Key type is unknown at runtime, and there is " +
+			"no value compare against")
 	}
 
 	return c.op(fn, match)
@@ -375,16 +381,9 @@ func (c *Criterion) test(testValue interface{}, encoded bool, keyType string, cu
 			if c.operator == in {
 				// value is a slice of values, use c.inValues
 				value = reflect.New(reflect.TypeOf(c.inValues[0])).Interface()
-				if keyType != "" {
-					err := decodeKey(testValue.([]byte), value, keyType)
-					if err != nil {
-						return false, err
-					}
-				} else {
-					err := decode(testValue.([]byte), value)
-					if err != nil {
-						return false, err
-					}
+				err := decode(testValue.([]byte), value)
+				if err != nil {
+					return false, err
 				}
 
 			} else {
@@ -560,6 +559,10 @@ func runQuery(tx *badger.Txn, dataType interface{}, query *Query, retrievedKeys 
 
 	iter := newIterator(tx, storer.Type(), query)
 	defer iter.Close()
+
+	if query.index != "" && query.badIndex {
+		return fmt.Errorf("The index %s does not exist", query.index)
+	}
 
 	newKeys := make(keyList, 0)
 
@@ -791,7 +794,7 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 			}
 
 			if keyType != nil {
-				err := decode(r.key, rowValue.FieldByName(keyField).Addr().Interface())
+				err := decodeKey(r.key, rowValue.FieldByName(keyField).Addr().Interface(), tp.Name())
 				if err != nil {
 					return err
 				}

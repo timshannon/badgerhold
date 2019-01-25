@@ -248,7 +248,8 @@ func TestFindWithBuiltinTypes(t *testing.T) {
 
 				if len(result) != 1 {
 					if testing.Verbose() {
-						t.Fatalf("Find result count is %d wanted %d.  Results: %v", len(result), 1, result)
+						t.Fatalf("Find result count is %d wanted %d.  Results: %v",
+							len(result), 1, result)
 					}
 					t.Fatalf("Find result count is %d wanted %d.", len(result), 1)
 				}
@@ -268,7 +269,8 @@ func TestFindWithBuiltinTypes(t *testing.T) {
 
 				if len(result) != 1 {
 					if testing.Verbose() {
-						t.Fatalf("Find result count is %d wanted %d.  Results: %v", len(result), 1, result)
+						t.Fatalf("Find result count is %d wanted %d.  Results: %v",
+							len(result), 1, result)
 					}
 					t.Fatalf("Find result count is %d wanted %d.", len(result), 1)
 				}
@@ -288,7 +290,8 @@ func TestFindWithBuiltinTypes(t *testing.T) {
 
 				if len(result) != 1 {
 					if testing.Verbose() {
-						t.Fatalf("Find result count is %d wanted %d.  Results: %v", len(result), 1, result)
+						t.Fatalf("Find result count is %d wanted %d.  Results: %v",
+							len(result), 1, result)
 					}
 					t.Fatalf("Find result count is %d wanted %d.", len(result), 1)
 				}
@@ -297,8 +300,6 @@ func TestFindWithBuiltinTypes(t *testing.T) {
 					t.Fatalf("%v is not equal to %v", result[0], allData[2])
 				}
 			})
-
 		}
-
 	})
 }

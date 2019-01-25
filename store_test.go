@@ -209,10 +209,7 @@ func TestGetUnknownType(t *testing.T) {
 // testWrap creates a temporary database for testing and closes and cleans it up when
 // completed.
 func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {
-	opt := badgerhold.DefaultOptions
-	opt.Dir = tempdir()
-	opt.ValueDir = opt.Dir
-
+	opt := testOptions()
 	store, err := badgerhold.Open(opt)
 	if err != nil {
 		t.Fatalf("Error opening %s: %s", opt.Dir, err)
@@ -227,6 +224,20 @@ func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {
 	if err != nil {
 		t.Fatalf("Error cleaning up store dir %s: %s", opt.Dir, err)
 	}
+}
+
+type emptyLogger struct{}
+
+func (e emptyLogger) Errorf(msg string, data ...interface{})   {}
+func (e emptyLogger) Infof(msg string, data ...interface{})    {}
+func (e emptyLogger) Warningf(msg string, data ...interface{}) {}
+
+func testOptions() badgerhold.Options {
+	opt := badgerhold.DefaultOptions
+	opt.Dir = tempdir()
+	opt.ValueDir = opt.Dir
+	opt.Logger = emptyLogger{}
+	return opt
 }
 
 // tempdir returns a temporary dir path.

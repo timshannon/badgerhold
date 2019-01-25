@@ -422,8 +422,7 @@ func TestInsertSequence(t *testing.T) {
 		}
 
 		for i := 0; i < 10; i++ {
-			seq := i + 1
-			if seq != int(result[i].Key) {
+			if i != int(result[i].Key) {
 				t.Fatalf("Sequence is not correct.  Wanted %d, got %d", i, result[i].Key)
 			}
 		}
@@ -442,7 +441,6 @@ func TestInsertSequenceSetKey(t *testing.T) {
 		}
 
 		for i := 0; i < 10; i++ {
-			seq := i + 1
 			st := InsertSequenceSetKeyTest{}
 			if st.Key != 0 {
 				t.Fatalf("Zero value of test data should be 0")
@@ -451,8 +449,9 @@ func TestInsertSequenceSetKey(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error inserting data for sequence test: %s", err)
 			}
-			if int(st.Key) != seq {
-				t.Fatalf("Inserted data's key field was not updated as expected.  Wanted %d, got %d", seq, st.Key)
+			if int(st.Key) != i {
+				t.Fatalf("Inserted data's key field was not updated as expected.  Wanted %d, got %d",
+					i, st.Key)
 			}
 		}
 	})

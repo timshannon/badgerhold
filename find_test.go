@@ -639,7 +639,8 @@ func TestFindOnEmptyBucketWithIndex(t *testing.T) {
 
 		err := store.Find(&result, badgerhold.Where("Category").Eq("animal").Index("Category"))
 		if err != nil {
-			t.Fatalf("Find query against a valid index name but an empty data bucket return an error!")
+			t.Fatalf("Find query against a valid index name but an empty data bucket return an error!: %s",
+				err)
 		}
 		if len(result) > 0 {
 			t.Fatalf("Find query against an empty bucket returned results!")

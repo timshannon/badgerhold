@@ -142,15 +142,24 @@ func (v *keyList) in(key []byte) bool {
 	return (i < len(*v) && bytes.Equal((*v)[i], key))
 }
 
-func indexExists(tx *badger.Txn, typeName, indexName string) bool {
-	opts := badger.DefaultIteratorOptions
-	opts.PrefetchValues = false
-	it := tx.NewIterator(opts)
-	defer it.Close()
-	prefix := indexKeyPrefix(typeName, indexName)
-	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+func indexExists(it *badger.Iterator, typeName, indexName string) bool {
+	iPrefix := indexKeyPrefix(typeName, indexName)
+	tPrefix := typePrefix(typeName)
+	// test if any data exists for type
+	it.Seek(tPrefix)
+	if !it.ValidForPrefix(tPrefix) {
+		// store is empty for this data type so the index could possibly exist
+		// we don't want to fail on a "bad index" because they could simply be running a query against
+		// an empty dataset
 		return true
 	}
+
+	// test if an index exists
+	it.Seek(iPrefix)
+	if it.ValidForPrefix(iPrefix) {
+		return true
+	}
+
 	return false
 }
 
@@ -163,14 +172,14 @@ type iterator struct {
 }
 
 func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
-	iter := &iterator{
+	i := &iterator{
 		tx:   tx,
 		iter: tx.NewIterator(badger.DefaultIteratorOptions),
 	}
 	var prefix []byte
 
 	if query.index != "" {
-		query.badIndex = !indexExists(tx, typeName, query.index)
+		query.badIndex = !indexExists(i.iter, typeName, query.index)
 	}
 
 	criteria := query.fieldCriteria[query.index]
@@ -178,12 +187,11 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 	// Key field
 	if query.index == Key && !query.badIndex {
 		prefix = typePrefix(typeName)
-		iter.iter.Seek(prefix)
-		iter.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
+		i.iter.Seek(prefix)
+		i.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
 			var nKeys [][]byte
 
 			for len(nKeys) < iteratorKeyMinCacheSize {
-				iter.Next()
 				if !iter.ValidForPrefix(prefix) {
 					return nKeys, nil
 				}
@@ -206,42 +214,42 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 				if ok {
 					nKeys = append(nKeys, item.Key())
 				}
+				iter.Next()
 			}
 			return nKeys, nil
 		}
 
-		return iter
+		return i
 	}
 
 	// bad index or matches Function on indexed field, filter through entire store
 	if query.badIndex || hasMatchFunc(criteria) {
 		prefix = typePrefix(typeName)
-		iter.iter.Seek(prefix)
-		iter.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
+		i.iter.Seek(prefix)
+		i.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
 			var nKeys [][]byte
 
 			for len(nKeys) < iteratorKeyMinCacheSize {
-				iter.Next()
 				if !iter.ValidForPrefix(prefix) {
 					return nKeys, nil
 				}
 
 				nKeys = append(nKeys, iter.Item().Key())
+				iter.Next()
 			}
 			return nKeys, nil
 		}
 
-		return iter
+		return i
 	}
 
 	// indexed field, get keys from index
 	prefix = indexKeyPrefix(typeName, query.index)
-	iter.iter.Seek(prefix)
-	iter.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
+	i.iter.Seek(prefix)
+	i.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
 		var nKeys [][]byte
 
 		for len(nKeys) < iteratorKeyMinCacheSize {
-			iter.Next()
 			if !iter.ValidForPrefix(prefix) {
 				return nKeys, nil
 			}
@@ -249,7 +257,8 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 			item := iter.Item()
 
 			// no currentRow on indexes as it refers to multiple rows
-			ok, err := matchesAllCriteria(criteria, item.Key(), true, typeName, nil)
+			// remove index prefix for matching
+			ok, err := matchesAllCriteria(criteria, item.Key()[len(prefix):], true, "", nil)
 			if err != nil {
 				return nil, err
 			}
@@ -267,13 +276,14 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 					return nil
 				})
 			}
+			iter.Next()
 
 		}
 		return nKeys, nil
 
 	}
 
-	return iter
+	return i
 }
 
 // Next returns the next key value that matches the iterators criteria
@@ -302,18 +312,17 @@ func (i *iterator) Next() (key []byte, value []byte) {
 		i.keyCache = append(i.keyCache, newKeys...)
 	}
 
-	nextKey := i.keyCache[0]
+	key = i.keyCache[0]
 	i.keyCache = i.keyCache[1:]
 
-	item, err := i.tx.Get(nextKey)
+	item, err := i.tx.Get(key)
 	if err != nil {
 		i.err = err
 		return nil, nil
 	}
 
-	var val []byte
 	err = item.Value(func(val []byte) error {
-		val = val
+		value = val
 		return nil
 	})
 	if err != nil {
@@ -321,7 +330,7 @@ func (i *iterator) Next() (key []byte, value []byte) {
 		return nil, nil
 	}
 
-	return nextKey, val
+	return
 }
 
 // Error returns the last error, iterator.Next() will not continue if there is an error present

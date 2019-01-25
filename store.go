@@ -78,84 +78,13 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// ReIndex removes any existing indexes and adds all the indexes defined by the passed in datatype example
-// This function allows you to index an already existing badgerDB file, or refresh any missing indexes
-// if bucketName is nil, then we'll assume a bucketName of storer.Type()
-// if a bucketname is specified, then the data will be copied to the badgerhold standard bucket of storer.Type()
-// func (s *Store) ReIndex(exampleType interface{}, bucketName []byte) error {
-// 	storer := newStorer(exampleType)
-
-// 	return s.Badger().Update(func(tx *badger.Txn) error {
-// 		indexes := storer.Indexes()
-// 		// delete existing indexes
-// 		// TODO: Remove indexes not specified the storer index list?
-// 		// good for cleanup, bad for possible side effects
-
-// 		for indexName := range indexes {
-// 			err := s.removeIndex(tx, exampleType, indexName)
-// 			if err != nil {
-// 				return err
-// 			}
-// 		}
-// FIXME:
-
-// 		copyData := true
-
-// 		if bucketName == nil {
-// 			bucketName = []byte(storer.Type())
-// 			copyData = false
-// 		}
-
-// 		c := tx.Bucket(bucketName).Cursor()
-
-// 		for k, v := c.First(); k != nil; k, v = c.Next() {
-// 			if copyData {
-// 				b, err := tx.CreateBucketIfNotExists([]byte(storer.Type()))
-// 				if err != nil {
-// 					return err
-// 				}
-
-// 				err = b.Put(k, v)
-// 				if err != nil {
-// 					return err
-// 				}
-// 			}
-// 			err := decode(v, exampleType)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			err = indexAdd(storer, tx, k, exampleType)
-// 			if err != nil {
-// 				return err
-// 			}
-// 		}
-// 		return nil
-// 	})
-// }
-
-// RemoveIndex removes an index from the store.
-// func (s *Store) RemoveIndex(dataType interface{}, indexName string) error {
-// 	return s.Badger().Update(func(tx *badger.Txn) error {
-// 		return s.removeIndex(tx, dataType, indexName)
-// 	})
-// }
-
-// func (s *Store) removeIndex(tx *badger.Txn, dataType interface{}, indexName string) error {
-// 	storer := newStorer(dataType)
-// 	opts := badger.DefaultIteratorOptions
-// 	opts.PrefetchValues = false
-// 	it := tx.NewIterator(opts)
-// 	defer it.Close()
-// 	prefix := indexKeyPrefix(storer.Type(), indexName)
-// 	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-// 		item := it.Item()
-// 		err := tx.Delete(item.Key())
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
+/*
+	NOTE: Not going to implement ReIndex and Remove index
+	I had originally created these to make the transision from a plain bolt or badger DB easier
+	but there is too much chance for lost data, and it's probably better that any conversion be
+	done by the developer so they can directly manage how they want data to be migrated.
+	If you disagree, feel free to open an issue and we can revisit this.
+*/
 
 // Storer is the Interface to implement to skip reflect calls on all data passed into the badgerhold
 type Storer interface {
