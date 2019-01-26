@@ -183,9 +183,14 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 	}
 
 	criteria := query.fieldCriteria[query.index]
+	if hasMatchFunc(criteria) {
+		// can't use indexes on matchFuncs as the entire record isn't available for testing in the passed
+		// in function
+		criteria = nil
+	}
 
-	// Key field
-	if query.index == Key && !query.badIndex {
+	// Key field or index not specified - test key against criteria (if it exists) or return everything
+	if query.index == "" || len(criteria) == 0 {
 		prefix = typePrefix(typeName)
 		i.iter.Seek(prefix)
 		i.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
@@ -196,45 +201,33 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 					return nKeys, nil
 				}
 
-				val := reflect.New(query.dataType)
 				item := iter.Item()
+				key := item.KeyCopy(nil)
+				ok := false
+				if len(criteria) == 0 {
+					// nothing to check return key for value testing
+					ok = true
+				} else {
 
-				err := item.Value(func(v []byte) error {
-					return decode(v, val.Interface())
-				})
-				if err != nil {
-					return nil, err
-				}
+					val := reflect.New(query.dataType)
 
-				ok, err := matchesAllCriteria(criteria, item.Key(), true, typeName, val.Interface())
-				if err != nil {
-					return nil, err
+					err := item.Value(func(v []byte) error {
+						return decode(v, val.Interface())
+					})
+					if err != nil {
+						return nil, err
+					}
+
+					ok, err = matchesAllCriteria(criteria, key, true, typeName, val.Interface())
+					if err != nil {
+						return nil, err
+					}
 				}
 
 				if ok {
-					nKeys = append(nKeys, item.Key())
+					nKeys = append(nKeys, key)
+
 				}
-				iter.Next()
-			}
-			return nKeys, nil
-		}
-
-		return i
-	}
-
-	// bad index or matches Function on indexed field, filter through entire store
-	if query.badIndex || hasMatchFunc(criteria) {
-		prefix = typePrefix(typeName)
-		i.iter.Seek(prefix)
-		i.nextKeys = func(iter *badger.Iterator) ([][]byte, error) {
-			var nKeys [][]byte
-
-			for len(nKeys) < iteratorKeyMinCacheSize {
-				if !iter.ValidForPrefix(prefix) {
-					return nKeys, nil
-				}
-
-				nKeys = append(nKeys, iter.Item().Key())
 				iter.Next()
 			}
 			return nKeys, nil
@@ -291,10 +284,6 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 // and iterator.Error() will return the error
 func (i *iterator) Next() (key []byte, value []byte) {
 	if i.err != nil {
-		return nil, nil
-	}
-
-	if i.nextKeys == nil {
 		return nil, nil
 	}
 

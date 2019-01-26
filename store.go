@@ -7,6 +7,7 @@ package badgerhold
 import (
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/dgraph-io/badger"
 )
@@ -15,6 +16,7 @@ import (
 type Store struct {
 	db               *badger.DB
 	sequenceBandwith uint64
+	sequences        *sync.Map
 }
 
 // Options allows you set different options from the defaults
@@ -27,14 +29,14 @@ type Options struct {
 }
 
 var DefaultOptions = Options{
-	Options: badger.DefaultOptions,
-	Encoder: DefaultEncode,
-	Decoder: DefaultDecode,
+	Options:          badger.DefaultOptions,
+	Encoder:          DefaultEncode,
+	Decoder:          DefaultDecode,
+	SequenceBandwith: 100,
 }
 
 // Open opens or creates a badgerhold file.
 func Open(options Options) (*Store, error) {
-	defaultOptions(&options)
 
 	encode = options.Encoder
 	decode = options.Decoder
@@ -47,25 +49,8 @@ func Open(options Options) (*Store, error) {
 	return &Store{
 		db:               db,
 		sequenceBandwith: options.SequenceBandwith,
+		sequences:        &sync.Map{},
 	}, nil
-}
-
-// set any unspecified options to defaults
-func defaultOptions(options *Options) {
-	if options == nil {
-		options = &Options{}
-	}
-
-	if options.Encoder == nil {
-		options.Encoder = DefaultEncode
-	}
-	if options.Decoder == nil {
-		options.Decoder = DefaultDecode
-	}
-
-	if options.SequenceBandwith == 0 {
-		options.SequenceBandwith = 100
-	}
 }
 
 // Badger returns the underlying Badger DB the badgerhold is based on
@@ -75,6 +60,17 @@ func (s *Store) Badger() *badger.DB {
 
 // Close closes the badger db
 func (s *Store) Close() error {
+	var err error
+	s.sequences.Range(func(key, value interface{}) bool {
+		err = value.(*badger.Sequence).Release()
+		if err != nil {
+			return false
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
 	return s.db.Close()
 }
 
@@ -160,15 +156,17 @@ func newStorer(dataType interface{}) Storer {
 }
 
 func (s *Store) getSequence(typeName string) (uint64, error) {
-	seq, err := s.Badger().GetSequence([]byte(typeName), s.sequenceBandwith)
-	if err != nil {
-		return 0, err
+	seq, ok := s.sequences.Load(typeName)
+	if !ok {
+		newSeq, err := s.Badger().GetSequence([]byte(typeName), s.sequenceBandwith)
+		if err != nil {
+			return 0, err
+		}
+		s.sequences.Store(typeName, newSeq)
+		seq = newSeq
 	}
-	defer seq.Release()
 
-	// FIXME: I don't believe this is safe to call concurrently. I'll need to store these sequences and Release
-	// them all on store.Close()
-	return seq.Next()
+	return seq.(*badger.Sequence).Next()
 }
 
 func typePrefix(typeName string) []byte {

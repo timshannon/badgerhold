@@ -944,3 +944,62 @@ func TestQueryNestedIndex(t *testing.T) {
 
 	_ = badgerhold.Where("Test").Eq("test").Index("Nested.Name")
 }
+
+// TestQueryIterKeyCacheOverflow tests to make sure that a query can goe past the current hardcoded key cache in the
+// iterator (currently 100 keys)
+func TestQueryIterKeyCacheOverflow(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+
+		type KeyCacheTest struct {
+			Key      int
+			IndexKey int `badgerholdIndex:"IndexKey"`
+		}
+
+		size := 200
+		stop := 10
+
+		for i := 0; i < size; i++ {
+			err := store.Insert(i, &KeyCacheTest{
+				Key:      i,
+				IndexKey: i,
+			})
+			if err != nil {
+				t.Fatalf("Error inserting data for key cache test: %s", err)
+			}
+		}
+
+		tests := []*badgerhold.Query{
+			badgerhold.Where(badgerhold.Key).Gt(stop),
+			badgerhold.Where(badgerhold.Key).Gt(stop).Index(badgerhold.Key),
+			badgerhold.Where("Key").Gt(stop),
+			badgerhold.Where("IndexKey").Gt(stop).Index("IndexKey"),
+			badgerhold.Where("IndexKey").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
+				field := ra.Field()
+				_, ok := field.(int)
+				if !ok {
+					return false, fmt.Errorf("Field not an int, it's a %T!", field)
+				}
+
+				return field.(int) > stop, nil
+			}).Index("IndexKey"),
+		}
+
+		for i := range tests {
+			t.Run(fmt.Sprintf("Test %d", i), func(t *testing.T) {
+				var result []KeyCacheTest
+
+				err := store.Find(&result, tests[i])
+				if err != nil {
+					t.Fatalf("Error getting data from badgerhold: %s", err)
+				}
+
+				for i := stop; i < 10; i++ {
+					if i != result[i].Key {
+						t.Fatalf("Value is not correct.  Wanted %d, got %d", i, result[i].Key)
+					}
+				}
+			})
+		}
+
+	})
+}
