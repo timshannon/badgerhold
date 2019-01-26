@@ -42,6 +42,7 @@ func benchWrap(b *testing.B, options *badgerhold.Options, bench func(store *badg
 	if err != nil {
 		b.Fatalf("Error opening %s: %s", tempDir, err)
 	}
+	defer os.RemoveAll(tempDir)
 
 	if options == nil {
 		options = &badgerhold.DefaultOptions
@@ -55,12 +56,10 @@ func benchWrap(b *testing.B, options *badgerhold.Options, bench func(store *badg
 		b.Fatalf("Error opening %s: %s", tempDir, err)
 	}
 
+	defer store.Close()
 	if store == nil {
 		b.Fatalf("store is null!")
 	}
-
-	defer store.Close()
-	defer os.RemoveAll(tempDir)
 
 	bench(store, b)
 }

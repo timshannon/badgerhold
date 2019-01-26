@@ -201,10 +201,11 @@ func (s *Store) TxUpsert(tx *badger.Txn, key interface{}, data interface{}) erro
 		if err != nil {
 			return err
 		}
-	}
-	if err != badger.ErrKeyNotFound {
+	} else if err != badger.ErrKeyNotFound {
 		return err
 	}
+
+	// existing entry not found
 
 	value, err := encode(data)
 	if err != nil {
@@ -230,6 +231,7 @@ func (s *Store) UpdateMatching(dataType interface{}, query *Query, update func(r
 }
 
 // TxUpdateMatching does the same as UpdateMatching, but allows you to specify your own transaction
-func (s *Store) TxUpdateMatching(tx *badger.Txn, dataType interface{}, query *Query, update func(record interface{}) error) error {
+func (s *Store) TxUpdateMatching(tx *badger.Txn, dataType interface{}, query *Query,
+	update func(record interface{}) error) error {
 	return updateQuery(tx, dataType, query, update)
 }

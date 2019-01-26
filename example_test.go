@@ -45,12 +45,13 @@ func Example() {
 	}
 
 	dir := tempdir()
-	options := badgerhold.Options{}
+	defer os.RemoveAll(dir)
+
+	options := badgerhold.DefaultOptions
 	options.Dir = dir
 	options.ValueDir = dir
 	store, err := badgerhold.Open(options)
 	defer store.Close()
-	defer os.RemoveAll(dir)
 
 	if err != nil {
 		// handle error

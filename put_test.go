@@ -225,7 +225,8 @@ func TestUpdateMatching(t *testing.T) {
 				err := store.UpdateMatching(&ItemTest{}, tst.query, func(record interface{}) error {
 					update, ok := record.(*ItemTest)
 					if !ok {
-						return fmt.Errorf("Record isn't the correct type!  Wanted Itemtest, got %T", record)
+						return fmt.Errorf("Record isn't the correct type!  Wanted Itemtest, got %T",
+							record)
 					}
 
 					update.UpdateField = "updated"
@@ -243,7 +244,8 @@ func TestUpdateMatching(t *testing.T) {
 				}
 
 				var result []ItemTest
-				err = store.Find(&result, badgerhold.Where("UpdateIndex").Eq("updated index").And("UpdateField").Eq("updated"))
+				err = store.Find(&result, badgerhold.Where("UpdateIndex").Eq("updated index").
+					And("UpdateField").Eq("updated"))
 				if err != nil {
 					t.Fatalf("Error finding result after update from badgerhold: %s", err)
 				}
