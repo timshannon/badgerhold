@@ -181,10 +181,9 @@ var testData = []ItemTest{
 }
 
 type test struct {
-	name       string
-	query      *badgerhold.Query
-	result     []int // indices of test data to be found
-	writeError bool  // if the query will error on writable transactions
+	name   string
+	query  *badgerhold.Query
+	result []int // indices of test data to be found
 }
 
 var testResults = []test{
@@ -347,8 +346,7 @@ var testResults = []test{
 
 			return false, nil
 		}),
-		result:     []int{14, 15},
-		writeError: true,
+		result: []int{14, 15},
 	},
 	test{
 		name:   "Time Comparison",
@@ -471,8 +469,7 @@ var testResults = []test{
 			grp[0].Max("ID", max)
 			return ra.Field().(int) == max.ID, nil
 		}),
-		result:     []int{11, 14, 15},
-		writeError: true,
+		result: []int{11, 14, 15},
 	},
 	test{
 		name:   "Indexed in",

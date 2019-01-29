@@ -12,7 +12,7 @@ import (
 )
 
 // ErrKeyExists is the error returned when data is being Inserted for a Key that already exists
-var ErrKeyExists = errors.New("This Key already exists in this badgerhold for this type")
+var ErrKeyExists = errors.New("This Key already exists in badgerhold for this type")
 
 // sequence tells badgerhold to insert the key as the next sequence in the bucket
 type sequence struct{}

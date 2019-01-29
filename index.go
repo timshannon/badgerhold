@@ -164,18 +164,28 @@ func indexExists(it *badger.Iterator, typeName, indexName string) bool {
 }
 
 type iterator struct {
-	keyCache [][]byte
-	nextKeys func(*badger.Iterator) ([][]byte, error)
-	iter     *badger.Iterator
-	tx       *badger.Txn
-	err      error
+	keyCache         [][]byte
+	nextKeys         func(*badger.Iterator) ([][]byte, error)
+	iter             *badger.Iterator
+	lastSeek         []byte
+	subQueryLastSeek []byte
+	tx               *badger.Txn
+	err              error
 }
 
 func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 	i := &iterator{
-		tx:   tx,
-		iter: tx.NewIterator(badger.DefaultIteratorOptions),
+		tx: tx,
 	}
+
+	if query.iterator == nil {
+		query.iterator = tx.NewIterator(badger.DefaultIteratorOptions)
+	} else {
+
+	}
+
+	i.iter = query.iterator
+
 	var prefix []byte
 
 	if query.index != "" {
@@ -203,6 +213,7 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 
 				item := iter.Item()
 				key := item.KeyCopy(nil)
+				i.lastSeek = key
 				ok := false
 				if len(criteria) == 0 {
 					// nothing to check return key for value testing
@@ -248,6 +259,7 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 			}
 
 			item := iter.Item()
+			i.lastSeek = item.KeyCopy(nil)
 
 			// no currentRow on indexes as it refers to multiple rows
 			// remove index prefix for matching
