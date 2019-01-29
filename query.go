@@ -165,7 +165,7 @@ func (q *Query) SortBy(fields ...string) *Query {
 		if fields[i] == Key {
 			panic("Cannot sort by Key.")
 		}
-		found := false
+		var found bool
 		for k := range q.sort {
 			if q.sort[k] == fields[i] {
 				found = true

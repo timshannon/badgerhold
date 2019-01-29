@@ -214,7 +214,7 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 				item := iter.Item()
 				key := item.KeyCopy(nil)
 				i.lastSeek = key
-				ok := false
+				var ok bool
 				if len(criteria) == 0 {
 					// nothing to check return key for value testing
 					ok = true

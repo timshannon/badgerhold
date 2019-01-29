@@ -28,6 +28,8 @@ type Options struct {
 	badger.Options
 }
 
+// DefaultOptions are a default set of options for opening a BadgerHold database
+// Includes badgers own default options
 var DefaultOptions = Options{
 	Options:          badger.DefaultOptions,
 	Encoder:          DefaultEncode,
@@ -76,7 +78,7 @@ func (s *Store) Close() error {
 
 /*
 	NOTE: Not going to implement ReIndex and Remove index
-	I had originally created these to make the transision from a plain bolt or badger DB easier
+	I had originally created these to make the transition from a plain bolt or badger DB easier
 	but there is too much chance for lost data, and it's probably better that any conversion be
 	done by the developer so they can directly manage how they want data to be migrated.
 	If you disagree, feel free to open an issue and we can revisit this.
