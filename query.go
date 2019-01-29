@@ -46,7 +46,6 @@ type Query struct {
 	badIndex bool
 	dataType reflect.Type
 	tx       *badger.Txn
-	iterator *badger.Iterator
 
 	limit   int
 	skip    int
@@ -332,10 +331,9 @@ type MatchFunc func(ra *RecordAccess) (bool, error)
 // RecordAccess allows access to the current record, field or allows running a subquery within a
 // MatchFunc
 type RecordAccess struct {
-	tx       *badger.Txn
-	record   interface{}
-	field    interface{}
-	iterator *badger.Iterator
+	tx     *badger.Txn
+	record interface{}
+	field  interface{}
 }
 
 // Field is the current field being queried
@@ -351,15 +349,12 @@ func (r *RecordAccess) Record() interface{} {
 // SubQuery allows you to run another query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubQuery(result interface{}, query *Query) error {
-	query.iterator = r.iterator
 	return findQuery(r.tx, result, query)
 }
 
 // SubAggregateQuery allows you to run another aggregate query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubAggregateQuery(query *Query, groupBy ...string) ([]*AggregateResult, error) {
-	query.iterator = r.iterator
-
 	return aggregateQuery(r.tx, r.record, query, groupBy...)
 }
 
@@ -423,10 +418,9 @@ func (c *Criterion) test(testValue interface{}, encoded bool, keyType string, cu
 		return c.value.(*regexp.Regexp).Match([]byte(fmt.Sprintf("%s", value))), nil
 	case fn:
 		return c.value.(MatchFunc)(&RecordAccess{
-			field:    value,
-			record:   currentRow,
-			tx:       c.query.tx,
-			iterator: c.query.iterator,
+			field:  value,
+			record: currentRow,
+			tx:     c.query.tx,
 		})
 	case isnil:
 		return reflect.ValueOf(value).IsNil(), nil
@@ -560,11 +554,7 @@ func runQuery(tx *badger.Txn, dataType interface{}, query *Query, retrievedKeys 
 	}
 
 	iter := newIterator(tx, storer.Type(), query)
-	query.iterator = iter.iter
-	defer func() {
-		iter.Close()
-		query.iterator = nil
-	}()
+	defer iter.Close()
 
 	if query.index != "" && query.badIndex {
 		return fmt.Errorf("The index %s does not exist", query.index)

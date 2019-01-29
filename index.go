@@ -164,27 +164,25 @@ func indexExists(it *badger.Iterator, typeName, indexName string) bool {
 }
 
 type iterator struct {
-	keyCache         [][]byte
-	nextKeys         func(*badger.Iterator) ([][]byte, error)
-	iter             *badger.Iterator
-	lastSeek         []byte
-	subQueryLastSeek []byte
-	tx               *badger.Txn
-	err              error
+	keyCache [][]byte
+	nextKeys func(*badger.Iterator) ([][]byte, error)
+	iter     *badger.Iterator
+	tx       *badger.Txn
+	err      error
+}
+
+// seekTree is for keeping track of an iterator's last seek point, since there can only be one iterator in a RW
+// transaction
+type seekTree struct {
+	parent     *seekTree
+	currentKey []byte
 }
 
 func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 	i := &iterator{
-		tx: tx,
+		tx:   tx,
+		iter: tx.NewIterator(badger.DefaultIteratorOptions),
 	}
-
-	if query.iterator == nil {
-		query.iterator = tx.NewIterator(badger.DefaultIteratorOptions)
-	} else {
-
-	}
-
-	i.iter = query.iterator
 
 	var prefix []byte
 
@@ -213,7 +211,6 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 
 				item := iter.Item()
 				key := item.KeyCopy(nil)
-				i.lastSeek = key
 				var ok bool
 				if len(criteria) == 0 {
 					// nothing to check return key for value testing
@@ -259,8 +256,6 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 			}
 
 			item := iter.Item()
-			i.lastSeek = item.KeyCopy(nil)
-
 			// no currentRow on indexes as it refers to multiple rows
 			// remove index prefix for matching
 			ok, err := matchesAllCriteria(criteria, item.Key()[len(prefix):], true, "", nil)
