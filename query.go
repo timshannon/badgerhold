@@ -352,20 +352,16 @@ func (r *RecordAccess) Record() interface{} {
 // SubQuery allows you to run another query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubQuery(result interface{}, query *Query) error {
-	if r.query.writable {
-		query.bookmark = r.query.bookmark
-	}
 	query.subquery = true
+	query.bookmark = r.query.bookmark
 	return findQuery(r.query.tx, result, query)
 }
 
 // SubAggregateQuery allows you to run another aggregate query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubAggregateQuery(query *Query, groupBy ...string) ([]*AggregateResult, error) {
-	if r.query.writable {
-		query.bookmark = r.query.bookmark
-	}
 	query.subquery = true
+	query.bookmark = r.query.bookmark
 	return aggregateQuery(r.query.tx, r.record, query, groupBy...)
 }
 
@@ -565,7 +561,7 @@ func runQuery(tx *badger.Txn, dataType interface{}, query *Query, retrievedKeys 
 	}
 
 	iter := newIterator(tx, storer.Type(), query, query.bookmark)
-	if query.writable || query.subquery {
+	if (query.writable || query.subquery) && query.bookmark == nil {
 		query.bookmark = iter.createBookmark()
 	}
 
