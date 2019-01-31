@@ -46,6 +46,9 @@ type Query struct {
 	badIndex bool
 	dataType reflect.Type
 	tx       *badger.Txn
+	writable bool
+	subquery bool
+	bookmark *iterBookmark
 
 	limit   int
 	skip    int
@@ -331,9 +334,9 @@ type MatchFunc func(ra *RecordAccess) (bool, error)
 // RecordAccess allows access to the current record, field or allows running a subquery within a
 // MatchFunc
 type RecordAccess struct {
-	tx     *badger.Txn
 	record interface{}
 	field  interface{}
+	query  *Query
 }
 
 // Field is the current field being queried
@@ -349,13 +352,21 @@ func (r *RecordAccess) Record() interface{} {
 // SubQuery allows you to run another query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubQuery(result interface{}, query *Query) error {
-	return findQuery(r.tx, result, query)
+	if r.query.writable {
+		query.bookmark = r.query.bookmark
+	}
+	query.subquery = true
+	return findQuery(r.query.tx, result, query)
 }
 
 // SubAggregateQuery allows you to run another aggregate query in the same transaction for each
 // record in a parent query
 func (r *RecordAccess) SubAggregateQuery(query *Query, groupBy ...string) ([]*AggregateResult, error) {
-	return aggregateQuery(r.tx, r.record, query, groupBy...)
+	if r.query.writable {
+		query.bookmark = r.query.bookmark
+	}
+	query.subquery = true
+	return aggregateQuery(r.query.tx, r.record, query, groupBy...)
 }
 
 // MatchFunc will test if a field matches the passed in function
@@ -420,7 +431,7 @@ func (c *Criterion) test(testValue interface{}, encoded bool, keyType string, cu
 		return c.value.(MatchFunc)(&RecordAccess{
 			field:  value,
 			record: currentRow,
-			tx:     c.query.tx,
+			query:  c.query,
 		})
 	case isnil:
 		return reflect.ValueOf(value).IsNil(), nil
@@ -553,8 +564,15 @@ func runQuery(tx *badger.Txn, dataType interface{}, query *Query, retrievedKeys 
 		return runQuerySort(tx, dataType, query, action)
 	}
 
-	iter := newIterator(tx, storer.Type(), query)
-	defer iter.Close()
+	iter := newIterator(tx, storer.Type(), query, query.bookmark)
+	if query.writable || query.subquery {
+		query.bookmark = iter.createBookmark()
+	}
+
+	defer func() {
+		iter.Close()
+		query.bookmark = nil
+	}()
 
 	if query.index != "" && query.badIndex {
 		return fmt.Errorf("The index %s does not exist", query.index)
@@ -752,6 +770,8 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 		query = &Query{}
 	}
 
+	query.writable = false
+
 	resultVal := reflect.ValueOf(result)
 	if resultVal.Kind() != reflect.Ptr || resultVal.Elem().Kind() != reflect.Slice {
 		panic("result argument must be a slice address")
@@ -815,6 +835,7 @@ func deleteQuery(tx *badger.Txn, dataType interface{}, query *Query) error {
 	if query == nil {
 		query = &Query{}
 	}
+	query.writable = true
 
 	var records []*record
 
@@ -852,6 +873,7 @@ func updateQuery(tx *badger.Txn, dataType interface{}, query *Query, update func
 		query = &Query{}
 	}
 
+	query.writable = true
 	var records []*record
 
 	err := runQuery(tx, dataType, query, nil, query.skip,
@@ -906,6 +928,7 @@ func aggregateQuery(tx *badger.Txn, dataType interface{}, query *Query, groupBy 
 		query = &Query{}
 	}
 
+	query.writable = false
 	var result []*AggregateResult
 
 	if len(groupBy) == 0 {

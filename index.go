@@ -167,21 +167,28 @@ type iterator struct {
 	keyCache [][]byte
 	nextKeys func(*badger.Iterator) ([][]byte, error)
 	iter     *badger.Iterator
+	bookmark *iterBookmark
+	lastSeek []byte
 	tx       *badger.Txn
 	err      error
 }
 
-// seekTree is for keeping track of an iterator's last seek point, since there can only be one iterator in a RW
-// transaction
-type seekTree struct {
-	parent     *seekTree
-	currentKey []byte
+// iterBookmark stores a seek location in a specific iterator
+// so that a single RW iterator can be shared within a single transaction
+type iterBookmark struct {
+	iter    *badger.Iterator
+	seekKey []byte
 }
 
-func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
+func newIterator(tx *badger.Txn, typeName string, query *Query, bookmark *iterBookmark) *iterator {
 	i := &iterator{
-		tx:   tx,
-		iter: tx.NewIterator(badger.DefaultIteratorOptions),
+		tx: tx,
+	}
+
+	if bookmark != nil {
+		i.iter = bookmark.iter
+	} else {
+		i.iter = tx.NewIterator(badger.DefaultIteratorOptions)
 	}
 
 	var prefix []byte
@@ -236,6 +243,7 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 					nKeys = append(nKeys, key)
 
 				}
+				i.lastSeek = key
 				iter.Next()
 			}
 			return nKeys, nil
@@ -256,9 +264,10 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 			}
 
 			item := iter.Item()
+			key := item.KeyCopy(nil)
 			// no currentRow on indexes as it refers to multiple rows
 			// remove index prefix for matching
-			ok, err := matchesAllCriteria(criteria, item.Key()[len(prefix):], true, "", nil)
+			ok, err := matchesAllCriteria(criteria, key[len(prefix):], true, "", nil)
 			if err != nil {
 				return nil, err
 			}
@@ -276,6 +285,8 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 					return nil
 				})
 			}
+
+			i.lastSeek = key
 			iter.Next()
 
 		}
@@ -284,6 +295,13 @@ func newIterator(tx *badger.Txn, typeName string, query *Query) *iterator {
 	}
 
 	return i
+}
+
+func (i *iterator) createBookmark() *iterBookmark {
+	return &iterBookmark{
+		iter:    i.iter,
+		seekKey: i.lastSeek,
+	}
 }
 
 // Next returns the next key value that matches the iterators criteria
@@ -335,5 +353,10 @@ func (i *iterator) Error() error {
 }
 
 func (i *iterator) Close() {
+	if i.bookmark != nil {
+		i.iter.Seek(i.bookmark.seekKey)
+		return
+	}
+
 	i.iter.Close()
 }
