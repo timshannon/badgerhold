@@ -14,7 +14,7 @@ conflicts.
 This project is a rewrite of the [BoltHold](https://github.com/timshannon/bolthold) project on the Badger KV database
 instead of [Bolt](https://github.com/etcd-io/bbolt).  For a performance comparison between bolt and badger, see 
 https://blog.dgraph.io/post/badger-lmdb-boltdb/.  I've written up my own comparison of the two focusing on 
-characteristics *other* than performance here: https://tech.townsourced.com/post/bolddb-vs-badger/.
+characteristics *other* than performance here: https://tech.townsourced.com/post/boltdb-vs-badger/.
 
 ## Indexes
 Indexes allow you to skip checking any records that don't meet your index criteria.  If you have 1000 records and only
