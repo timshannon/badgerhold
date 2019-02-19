@@ -519,3 +519,141 @@ func TestInsertSetKey(t *testing.T) {
 
 	})
 }
+
+func TestAlternateTags(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type TestAlternate struct {
+			Key  uint64 `badgerhold:"key"`
+			Name string `badgerhold:"index"`
+		}
+		item := TestAlternate{
+			Name: "TestName",
+		}
+
+		key := uint64(123)
+		err := store.Insert(key, &item)
+		if err != nil {
+			t.Fatalf("Error inserting data for alternate tag test: %s", err)
+		}
+
+		if item.Key != key {
+			t.Fatalf("Key was not set.  Wanted %d, got %d", key, item.Key)
+		}
+
+		var result []TestAlternate
+
+		err = store.Find(&result, badgerhold.Where("Name").Eq(item.Name).Index("Name"))
+		if err != nil {
+			t.Fatalf("Query on alternate tag index failed: %s", err)
+		}
+
+		if len(result) != 1 {
+			t.Fatalf("Expected 1 got %d", len(result))
+		}
+	})
+}
+
+func TestUniqueConstraint(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type TestUnique struct {
+			Key  uint64 `badgerhold:"key"`
+			Name string `badgerhold:"unique"`
+		}
+
+		item := &TestUnique{
+			Name: "Tester Name",
+		}
+
+		err := store.Insert(badgerhold.NextSequence(), item)
+		if err != nil {
+			t.Fatalf("Error inserting base record for unique testing: %s", err)
+		}
+
+		t.Run("Insert", func(t *testing.T) {
+			err = store.Insert(badgerhold.NextSequence(), item)
+			if err != badgerhold.ErrUniqueExists {
+				t.Fatalf("Inserting duplicate record did not result in a unique constraint error: "+
+					"Expected %s, Got %s", badgerhold.ErrUniqueExists, err)
+			}
+		})
+
+		t.Run("Update", func(t *testing.T) {
+			update := &TestUnique{
+				Name: "Update Name",
+			}
+			err = store.Insert(badgerhold.NextSequence(), update)
+
+			if err != nil {
+				t.Fatalf("Inserting record for update Unique testing failed: %s", err)
+			}
+			update.Name = item.Name
+
+			err = store.Update(update.Key, update)
+			if err != badgerhold.ErrUniqueExists {
+				t.Fatalf("Duplicate record did not result in a unique constraint error: "+
+					"Expected %s, Got %s", badgerhold.ErrUniqueExists, err)
+			}
+		})
+
+		t.Run("Upsert", func(t *testing.T) {
+			update := &TestUnique{
+				Name: "Upsert Name",
+			}
+			err = store.Insert(badgerhold.NextSequence(), update)
+
+			if err != nil {
+				t.Fatalf("Inserting record for upsert Unique testing failed: %s", err)
+			}
+
+			update.Name = item.Name
+
+			err = store.Upsert(update.Key, update)
+			if err != badgerhold.ErrUniqueExists {
+				t.Fatalf("Duplicate record did not result in a unique constraint error: "+
+					"Expected %s, Got %s", badgerhold.ErrUniqueExists, err)
+			}
+		})
+
+		t.Run("UpdateMatching", func(t *testing.T) {
+			update := &TestUnique{
+				Name: "UpdateMatching Name",
+			}
+			err = store.Insert(badgerhold.NextSequence(), update)
+
+			if err != nil {
+				t.Fatalf("Inserting record for updatematching Unique testing failed: %s", err)
+			}
+
+			err = store.UpdateMatching(TestUnique{}, badgerhold.Where(badgerhold.Key).Eq(update.Key),
+				func(r interface{}) error {
+					record, ok := r.(*TestUnique)
+					if !ok {
+						return fmt.Errorf("Record isn't the correct type!  Got %T",
+							r)
+					}
+
+					record.Name = item.Name
+
+					return nil
+				})
+			if err != badgerhold.ErrUniqueExists {
+				t.Fatalf("Duplicate record did not result in a unique constraint error: "+
+					"Expected %s, Got %s", badgerhold.ErrUniqueExists, err)
+			}
+
+		})
+
+		t.Run("Delete", func(t *testing.T) {
+			err = store.Delete(item.Key, TestUnique{})
+			if err != nil {
+				t.Fatalf("Error deleting record for unique testing %s", err)
+			}
+
+			err = store.Insert(badgerhold.NextSequence(), item)
+			if err != nil {
+				t.Fatalf("Error inserting duplicate record that has been previously removed: %s", err)
+			}
+		})
+
+	})
+}

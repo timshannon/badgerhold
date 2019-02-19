@@ -12,6 +12,20 @@ import (
 	"github.com/dgraph-io/badger"
 )
 
+const (
+	// BadgerHoldIndexTag is the struct tag used to define an a field as indexable for a badgerhold
+	BadgerHoldIndexTag = "badgerholdIndex"
+
+	// BadgerholdKeyTag is the struct tag used to define an a field as a key for use in a Find query
+	BadgerholdKeyTag = "badgerholdKey"
+
+	// badgerholdPrefixTag is the prefix for an alternate (more standard) version of a struct tag
+	badgerholdPrefixTag         = "badgerhold"
+	badgerholdPrefixIndexValue  = "index"
+	badgerholdPrefixKeyValue    = "key"
+	badgerholdPrefixUniqueValue = "unique"
+)
+
 // Store is a badgerhold wrapper around a badger DB
 type Store struct {
 	db               *badger.DB
@@ -136,20 +150,36 @@ func newStorer(dataType interface{}) Storer {
 	}
 
 	for i := 0; i < storer.rType.NumField(); i++ {
+
+		indexName := ""
+		unique := false
+
 		if strings.Contains(string(storer.rType.Field(i).Tag), BadgerHoldIndexTag) {
-			indexName := storer.rType.Field(i).Tag.Get(BadgerHoldIndexTag)
+			indexName = storer.rType.Field(i).Tag.Get(BadgerHoldIndexTag)
 
 			if indexName != "" {
 				indexName = storer.rType.Field(i).Name
 			}
+		} else if tag := storer.rType.Field(i).Tag.Get(badgerholdPrefixTag); tag != "" {
+			if tag == badgerholdPrefixIndexValue {
+				indexName = storer.rType.Field(i).Name
+			} else if tag == badgerholdPrefixUniqueValue {
+				indexName = storer.rType.Field(i).Name
+				unique = true
+			}
+		}
 
-			storer.indexes[indexName] = func(name string, value interface{}) ([]byte, error) {
-				tp := reflect.ValueOf(value)
-				for tp.Kind() == reflect.Ptr {
-					tp = tp.Elem()
-				}
+		if indexName != "" {
+			storer.indexes[indexName] = Index{
+				IndexFunc: func(name string, value interface{}) ([]byte, error) {
+					tp := reflect.ValueOf(value)
+					for tp.Kind() == reflect.Ptr {
+						tp = tp.Elem()
+					}
 
-				return encode(tp.FieldByName(name).Interface())
+					return encode(tp.FieldByName(name).Interface())
+				},
+				Unique: unique,
 			}
 		}
 	}

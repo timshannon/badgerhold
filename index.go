@@ -12,16 +12,16 @@ import (
 	"github.com/dgraph-io/badger"
 )
 
-// BadgerHoldIndexTag is the struct tag used to define an a field as indexable for a badgerhold
-const BadgerHoldIndexTag = "badgerholdIndex"
-
 const indexPrefix = "_bhIndex"
 
 // size of iterator keys stored in memory before more are fetched
 const iteratorKeyMinCacheSize = 100
 
 // Index is a function that returns the indexable, encoded bytes of the passed in value
-type Index func(name string, value interface{}) ([]byte, error)
+type Index struct {
+	IndexFunc func(name string, value interface{}) ([]byte, error)
+	Unique    bool
+}
 
 // adds an item to the index
 func indexAdd(storer Storer, tx *badger.Txn, key []byte, data interface{}) error {
@@ -54,7 +54,8 @@ func indexDelete(storer Storer, tx *badger.Txn, key []byte, originalData interfa
 // // adds or removes a specific index on an item
 func indexUpdate(typeName, indexName string, index Index, tx *badger.Txn, key []byte, value interface{},
 	delete bool) error {
-	indexKey, err := index(indexName, value)
+
+	indexKey, err := index.IndexFunc(indexName, value)
 	if indexKey == nil {
 		return nil
 	}
@@ -73,6 +74,9 @@ func indexUpdate(typeName, indexName string, index Index, tx *badger.Txn, key []
 	}
 
 	if err != badger.ErrKeyNotFound {
+		if index.Unique && !delete {
+			return ErrUniqueExists
+		}
 		err = item.Value(func(iVal []byte) error {
 			return decode(iVal, &indexValue)
 		})

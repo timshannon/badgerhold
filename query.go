@@ -32,9 +32,6 @@ const (
 // Where(badgerhold.Key).Eq("testkey")
 const Key = ""
 
-// BadgerholdKeyTag is the struct tag used to define an a field as a key for use in a Find query
-const BadgerholdKeyTag = "badgerholdKey"
-
 // Query is a chained collection of criteria of which an object in the badgerhold needs to match to be returned
 // an empty query matches against all records
 type Query struct {
@@ -787,7 +784,8 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 	var keyField string
 
 	for i := 0; i < tp.NumField(); i++ {
-		if strings.Contains(string(tp.Field(i).Tag), BadgerholdKeyTag) {
+		if strings.Contains(string(tp.Field(i).Tag), BadgerholdKeyTag) ||
+			tp.Field(i).Tag.Get(badgerholdPrefixTag) == badgerholdPrefixKeyValue {
 			keyType = tp.Field(i).Type
 			keyField = tp.Field(i).Name
 			break
