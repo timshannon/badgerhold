@@ -8,12 +8,13 @@ Badger DB for customizing as you wish.  By default the encoding used is Gob, so 
 interface for faster serialization.  Or, alternately, you can use any serialization you want by supplying encode / decode
 funcs to the `Options` struct on Open.
 
-One Go Type will have one bucket, and multiple index buckets in a BadgerDB file, so you can store multiple Go Types in the
-same database.
+One Go Type will be prefixed with it's type name, so you can store multiple types in a single Badger database with
+conflicts.
 
 This project is a rewrite of the [BoltHold](https://github.com/timshannon/bolthold) project on the Badger KV database
-instead of [Bolt](https://github.com/etcd-io/bbolt).  For a comparison between bolt and badger, see 
-https://blog.dgraph.io/post/badger-lmdb-boltdb/.
+instead of [Bolt](https://github.com/etcd-io/bbolt).  For a performance comparison between bolt and badger, see 
+https://blog.dgraph.io/post/badger-lmdb-boltdb/.  I've written up my own comparison of the two focusing on 
+characteristics *other* than performance here: https://tech.townsourced.com/post/boltdb-vs-badger/.
 
 ## Indexes
 Indexes allow you to skip checking any records that don't meet your index criteria.  If you have 1000 records and only
