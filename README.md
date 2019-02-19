@@ -187,6 +187,21 @@ err := store.Insert(badgerhold.NextSequence(), &data)
 ```
 
 
+### Unique Constraints
+
+You can create a unique constraint on a given field by using the `badgerhold:"unique"` struct tag:
+
+```Go
+type User struct {
+  Name string 
+  Email string `badgerhold:"unique"` // this field will be indexed with a unique constraint
+}
+```
+
+The example above will only allow one record of type `User` to exist with a given `Email` field.  Any insert, update
+or upsert that would violate that constraint will fail and return the `badgerhold.ErrUniqueExists` error.
+
+
 ### Aggregate Queries
 
 Aggregate queries are queries that group results by a field.  For example, lets say you had a collection of employees:
