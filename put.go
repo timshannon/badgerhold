@@ -14,6 +14,9 @@ import (
 // ErrKeyExists is the error returned when data is being Inserted for a Key that already exists
 var ErrKeyExists = errors.New("This Key already exists in badgerhold for this type")
 
+// ErrUniqueExists is the error thrown when data is being inserted for a unique constraint value that already exists
+var ErrUniqueExists = errors.New("This value cannot be written due to the unique constraint on the field")
+
 // sequence tells badgerhold to insert the key as the next sequence in the bucket
 type sequence struct{}
 
@@ -89,7 +92,7 @@ func (s *Store) TxInsert(tx *badger.Txn, key, data interface{}) error {
 	for i := 0; i < dataType.NumField(); i++ {
 		tf := dataType.Field(i)
 		if _, ok := tf.Tag.Lookup(BadgerholdKeyTag); ok ||
-			tf.Tag.Get(BadgerholdPrefixTag) == badgerholdPrefixKeyValue {
+			tf.Tag.Get(badgerholdPrefixTag) == badgerholdPrefixKeyValue {
 			fieldValue := dataVal.Field(i)
 			keyValue := reflect.ValueOf(key)
 			if keyValue.Type() != tf.Type {

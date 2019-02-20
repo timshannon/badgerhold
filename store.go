@@ -19,11 +19,8 @@ const (
 	// BadgerholdKeyTag is the struct tag used to define an a field as a key for use in a Find query
 	BadgerholdKeyTag = "badgerholdKey"
 
-	// BadgerholdUniqueTag is the struct tag used to define a unique constraint on a specific field
-	BadgerholdUniqueTag = "badgerholdUnique"
-
-	// BadgerholdPrefixTag is the prefix for an alternate (more standard) version of a struct tag
-	BadgerholdPrefixTag         = "badgerhold"
+	// badgerholdPrefixTag is the prefix for an alternate (more standard) version of a struct tag
+	badgerholdPrefixTag         = "badgerhold"
 	badgerholdPrefixIndexValue  = "index"
 	badgerholdPrefixKeyValue    = "key"
 	badgerholdPrefixUniqueValue = "unique"
@@ -155,6 +152,7 @@ func newStorer(dataType interface{}) Storer {
 	for i := 0; i < storer.rType.NumField(); i++ {
 
 		indexName := ""
+		unique := false
 
 		if strings.Contains(string(storer.rType.Field(i).Tag), BadgerHoldIndexTag) {
 			indexName = storer.rType.Field(i).Tag.Get(BadgerHoldIndexTag)
@@ -162,18 +160,26 @@ func newStorer(dataType interface{}) Storer {
 			if indexName != "" {
 				indexName = storer.rType.Field(i).Name
 			}
-		} else if storer.rType.Field(i).Tag.Get(BadgerholdPrefixTag) == badgerholdPrefixIndexValue {
-			indexName = storer.rType.Field(i).Name
+		} else if tag := storer.rType.Field(i).Tag.Get(badgerholdPrefixTag); tag != "" {
+			if tag == badgerholdPrefixIndexValue {
+				indexName = storer.rType.Field(i).Name
+			} else if tag == badgerholdPrefixUniqueValue {
+				indexName = storer.rType.Field(i).Name
+				unique = true
+			}
 		}
 
 		if indexName != "" {
-			storer.indexes[indexName] = func(name string, value interface{}) ([]byte, error) {
-				tp := reflect.ValueOf(value)
-				for tp.Kind() == reflect.Ptr {
-					tp = tp.Elem()
-				}
+			storer.indexes[indexName] = Index{
+				IndexFunc: func(name string, value interface{}) ([]byte, error) {
+					tp := reflect.ValueOf(value)
+					for tp.Kind() == reflect.Ptr {
+						tp = tp.Elem()
+					}
 
-				return encode(tp.FieldByName(name).Interface())
+					return encode(tp.FieldByName(name).Interface())
+				},
+				Unique: unique,
 			}
 		}
 	}

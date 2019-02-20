@@ -153,7 +153,7 @@ then it is set on the data _before_ insertion.
 
 ```Go
 type Employee struct {
-	ID string `badgerhold:"key"`
+	ID uint64 `badgerhold:"key"`
 	FirstName string
 	LastName string
 	Division string
@@ -162,7 +162,7 @@ type Employee struct {
 
 // old struct tag, currenty still supported but may be deprecated in the future
 type Employee struct {
-	ID string `badgerholdKey`
+	ID uint64 `badgerholdKey`
 	FirstName string
 	LastName string
 	Division string

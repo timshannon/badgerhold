@@ -785,7 +785,7 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 
 	for i := 0; i < tp.NumField(); i++ {
 		if strings.Contains(string(tp.Field(i).Tag), BadgerholdKeyTag) ||
-			tp.Field(i).Tag.Get(BadgerholdPrefixTag) == badgerholdPrefixKeyValue {
+			tp.Field(i).Tag.Get(badgerholdPrefixTag) == badgerholdPrefixKeyValue {
 			keyType = tp.Field(i).Type
 			keyField = tp.Field(i).Name
 			break
