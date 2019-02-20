@@ -12,9 +12,6 @@ import (
 	"github.com/dgraph-io/badger"
 )
 
-// BadgerHoldIndexTag is the struct tag used to define an a field as indexable for a badgerhold
-const BadgerHoldIndexTag = "badgerholdIndex"
-
 const indexPrefix = "_bhIndex"
 
 // size of iterator keys stored in memory before more are fetched

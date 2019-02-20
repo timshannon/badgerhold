@@ -88,9 +88,8 @@ func (s *Store) TxInsert(tx *badger.Txn, key, data interface{}) error {
 
 	for i := 0; i < dataType.NumField(); i++ {
 		tf := dataType.Field(i)
-		// XXX: should we require standard tag format so we can use StructTag.Lookup()?
-		// XXX: should we use strings.Contains(string(tf.Tag), badgerholdKeyTag) so we don't require proper tags?
-		if _, ok := tf.Tag.Lookup(BadgerholdKeyTag); ok {
+		if _, ok := tf.Tag.Lookup(BadgerholdKeyTag); ok ||
+			tf.Tag.Get(BadgerholdPrefixTag) == badgerholdPrefixKeyValue {
 			fieldValue := dataVal.Field(i)
 			keyValue := reflect.ValueOf(key)
 			if keyValue.Type() != tf.Type {

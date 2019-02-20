@@ -12,6 +12,23 @@ import (
 	"github.com/dgraph-io/badger"
 )
 
+const (
+	// BadgerHoldIndexTag is the struct tag used to define an a field as indexable for a badgerhold
+	BadgerHoldIndexTag = "badgerholdIndex"
+
+	// BadgerholdKeyTag is the struct tag used to define an a field as a key for use in a Find query
+	BadgerholdKeyTag = "badgerholdKey"
+
+	// BadgerholdUniqueTag is the struct tag used to define a unique constraint on a specific field
+	BadgerholdUniqueTag = "badgerholdUnique"
+
+	// BadgerholdPrefixTag is the prefix for an alternate (more standard) version of a struct tag
+	BadgerholdPrefixTag         = "badgerhold"
+	badgerholdPrefixIndexValue  = "index"
+	badgerholdPrefixKeyValue    = "key"
+	badgerholdPrefixUniqueValue = "unique"
+)
+
 // Store is a badgerhold wrapper around a badger DB
 type Store struct {
 	db               *badger.DB
@@ -136,13 +153,20 @@ func newStorer(dataType interface{}) Storer {
 	}
 
 	for i := 0; i < storer.rType.NumField(); i++ {
+
+		indexName := ""
+
 		if strings.Contains(string(storer.rType.Field(i).Tag), BadgerHoldIndexTag) {
-			indexName := storer.rType.Field(i).Tag.Get(BadgerHoldIndexTag)
+			indexName = storer.rType.Field(i).Tag.Get(BadgerHoldIndexTag)
 
 			if indexName != "" {
 				indexName = storer.rType.Field(i).Name
 			}
+		} else if storer.rType.Field(i).Tag.Get(BadgerholdPrefixTag) == badgerholdPrefixIndexValue {
+			indexName = storer.rType.Field(i).Name
+		}
 
+		if indexName != "" {
 			storer.indexes[indexName] = func(name string, value interface{}) ([]byte, error) {
 				tp := reflect.ValueOf(value)
 				for tp.Kind() == reflect.Ptr {

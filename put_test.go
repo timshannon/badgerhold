@@ -519,3 +519,36 @@ func TestInsertSetKey(t *testing.T) {
 
 	})
 }
+
+func TestAlternateTags(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type TestAlternate struct {
+			Key  uint   `badgerhold:"key"`
+			Name string `badgerhold:"index"`
+		}
+		item := TestAlternate{
+			Name: "TestName",
+		}
+
+		key := uint(123)
+		err := store.Insert(key, &item)
+		if err != nil {
+			t.Fatalf("Error inserting data for alternate tag test: %s", err)
+		}
+
+		if item.Key != key {
+			t.Fatalf("Key was not set.  Wanted %d, got %d", key, item.Key)
+		}
+
+		var result []TestAlternate
+
+		err = store.Find(&result, badgerhold.Where("Name").Eq(item.Name).Index("Name"))
+		if err != nil {
+			t.Fatalf("Query on alternate tag index failed: %s", err)
+		}
+
+		if len(result) != 1 {
+			t.Fatalf("Expected 1 got %d", len(result))
+		}
+	})
+}
