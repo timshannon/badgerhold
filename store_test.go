@@ -139,6 +139,7 @@ type emptyLogger struct{}
 func (e emptyLogger) Errorf(msg string, data ...interface{})   {}
 func (e emptyLogger) Infof(msg string, data ...interface{})    {}
 func (e emptyLogger) Warningf(msg string, data ...interface{}) {}
+func (e emptyLogger) Debugf(msg string, data ...interface{})   {}
 
 func testOptions() badgerhold.Options {
 	opt := badgerhold.DefaultOptions

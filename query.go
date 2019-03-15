@@ -805,7 +805,11 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 			}
 
 			if keyType != nil {
-				err := decodeKey(r.key, rowValue.FieldByName(keyField).Addr().Interface(), tp.Name())
+				rowKey := rowValue
+				for rowKey.Kind() == reflect.Ptr {
+					rowKey = rowKey.Elem()
+				}
+				err := decodeKey(r.key, rowKey.FieldByName(keyField).Addr().Interface(), tp.Name())
 				if err != nil {
 					return err
 				}

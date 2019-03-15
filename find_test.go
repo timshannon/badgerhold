@@ -1000,3 +1000,53 @@ func TestQueryIterKeyCacheOverflow(t *testing.T) {
 
 	})
 }
+
+func TestNestedStructPointer(t *testing.T) {
+
+	type notification struct {
+		Enabled bool
+	}
+
+	type device struct {
+		ID            string `badgerhold:"key"`
+		Notifications *notification
+	}
+
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		id := "1"
+		store.Insert(id, &device{
+			ID: id,
+			Notifications: &notification{
+				Enabled: true,
+			},
+		})
+
+		devices := []*device{}
+		err := store.Find(&devices, nil)
+		if err != nil {
+			t.Fatalf("Error finding data for nested struct testing: %s", err)
+		}
+
+		device := &device{}
+		err = store.Get(id, device)
+		if err != nil {
+			t.Fatalf("Error getting data for nested struct testing: %s", err)
+		}
+
+		if devices[0].ID != id {
+			t.Fatalf("ID Expected %s, got %s", id, devices[0].ID)
+		}
+
+		if !devices[0].Notifications.Enabled {
+			t.Fatalf("Notifications.Enabled Expected  %t, got %t", true, devices[0].Notifications.Enabled)
+		}
+
+		if device.ID != id {
+			t.Fatalf("ID Expected %s, got %s", id, device.ID)
+		}
+
+		if !device.Notifications.Enabled {
+			t.Fatalf("Notifications.Enabled Expected  %t, got %t", true, device.Notifications.Enabled)
+		}
+	})
+}
