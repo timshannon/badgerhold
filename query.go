@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	eq    = iota //==
+	eq    = iota // ==
 	ne           // !=
 	gt           // >
 	lt           // <
@@ -26,6 +26,8 @@ const (
 	re           // regular expression
 	fn           // func
 	isnil        // test's for nil
+	sw           // string starts with
+	ew           // string ends with
 )
 
 // Key is shorthand for specifying a query to run again the Key in a badgerhold, simply returns ""
@@ -325,6 +327,16 @@ func (c *Criterion) IsNil() *Query {
 	return c.op(isnil, nil)
 }
 
+// HasPrefix will test if a field starts with provided string
+func (c *Criterion) HasPrefix(prefix string) *Query {
+	return c.op(sw, prefix)
+}
+
+// HasSuffix will test if a field ends with provided string
+func (c *Criterion) HasSuffix(suffix string) *Query {
+	return c.op(ew, suffix)
+}
+
 // MatchFunc is a function used to test an arbitrary matching value in a query
 type MatchFunc func(ra *RecordAccess) (bool, error)
 
@@ -428,8 +440,12 @@ func (c *Criterion) test(testValue interface{}, encoded bool, keyType string, cu
 		})
 	case isnil:
 		return reflect.ValueOf(value).IsNil(), nil
+	case sw:
+		return strings.HasPrefix(fmt.Sprintf("%s", value), fmt.Sprintf("%s", c.value)), nil
+	case ew:
+		return strings.HasSuffix(fmt.Sprintf("%s", value), fmt.Sprintf("%s", c.value)), nil
 	default:
-		//comparison operators
+		// comparison operators
 		result, err := c.compare(value, c.value, currentRow)
 		if err != nil {
 			return false, err
@@ -530,6 +546,10 @@ func (c *Criterion) String() string {
 		s += "matches the function"
 	case isnil:
 		return "is nil"
+	case sw:
+		return "starts with " + fmt.Sprintf("%+v", c.value)
+	case ew:
+		return "ends with " + fmt.Sprintf("%+v", c.value)
 	default:
 		panic("invalid operator")
 	}

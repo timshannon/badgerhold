@@ -395,6 +395,16 @@ var testResults = []test{
 		result: []int{0, 1, 2, 3, 5, 6, 8, 9, 11, 13, 14, 16},
 	},
 	test{
+		name:   "String starts with",
+		query:  badgerhold.Where("Name").HasPrefix("golf"),
+		result: []int{11},
+	},
+	test{
+		name:   "String ends with",
+		query:  badgerhold.Where("Name").HasSuffix("cart"),
+		result: []int{11},
+	},
+	test{
 		name:   "Self-Field comparison",
 		query:  badgerhold.Where("Color").Eq(badgerhold.Field("Fruit")).And("Fruit").Ne(""),
 		result: []int{6},
@@ -655,7 +665,7 @@ func TestQueryStringPrint(t *testing.T) {
 		And("ThirdField").RegExp(regexp.MustCompile("test")).Index("IndexName").And("FirstField").
 		MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 			return true, nil
-		}))
+		})).And("SeventhField").HasPrefix("SeventhValue").And("EighthField").HasSuffix("EighthValue")
 
 	contains := []string{
 		"FirstField == first value",
@@ -669,6 +679,8 @@ func TestQueryStringPrint(t *testing.T) {
 		"SecondField is nil",
 		"ThirdField matches the regular expression test",
 		"Using Index [IndexName]",
+		"SeventhField starts with SeventhValue",
+		"EighthField ends with EighthValue",
 	}
 
 	// map order isn't guaranteed, check if all needed lines exist
