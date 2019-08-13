@@ -45,7 +45,7 @@ type Options struct {
 // DefaultOptions are a default set of options for opening a BadgerHold database
 // Includes badgers own default options
 var DefaultOptions = Options{
-	Options:          badger.DefaultOptions,
+	Options:          badger.DefaultOptions(""),
 	Encoder:          DefaultEncode,
 	Decoder:          DefaultDecode,
 	SequenceBandwith: 100,
