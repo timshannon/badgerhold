@@ -47,7 +47,7 @@ func Example() {
 	dir := tempdir()
 	defer os.RemoveAll(dir)
 
-	options := badgerhold.DefaultOptions("")
+	options := badgerhold.DefaultOptions
 	options.Dir = dir
 	options.ValueDir = dir
 	store, err := badgerhold.Open(options)

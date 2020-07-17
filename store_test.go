@@ -142,7 +142,7 @@ func (e emptyLogger) Warningf(msg string, data ...interface{}) {}
 func (e emptyLogger) Debugf(msg string, data ...interface{})   {}
 
 func testOptions() badgerhold.Options {
-	opt := badgerhold.DefaultOptions("")
+	opt := badgerhold.DefaultOptions
 	opt.Dir = tempdir()
 	opt.ValueDir = opt.Dir
 	opt.Logger = emptyLogger{}
