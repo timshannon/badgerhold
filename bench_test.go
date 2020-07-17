@@ -45,7 +45,8 @@ func benchWrap(b *testing.B, options *badgerhold.Options, bench func(store *badg
 	defer os.RemoveAll(tempDir)
 
 	if options == nil {
-		options = &badgerhold.DefaultOptions
+		tempOptions := badgerhold.DefaultOptions("")
+		options = &tempOptions
 	}
 
 	options.Dir = tempDir
@@ -147,7 +148,7 @@ func BenchmarkIndexedUpsert(b *testing.B) {
 }
 
 func BenchmarkNoIndexInsertJSON(b *testing.B) {
-	opt := badgerhold.DefaultOptions
+	opt := badgerhold.DefaultOptions("")
 	opt.Encoder = json.Marshal
 	opt.Decoder = json.Unmarshal
 	benchWrap(b, &opt, func(store *badgerhold.Store, b *testing.B) {

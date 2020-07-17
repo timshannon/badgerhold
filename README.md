@@ -281,7 +281,7 @@ to create the database, create the tables you expect, and create any indexes.  W
 and put any type of data you want in it.
 
 ```Go
-store, err := badgerhold.Open(filename, 0666, nil)
+store, err := badgerhold.Open(badgerhold.DefaultOptions(filename))
 if err != nil {
 	//handle error
 }

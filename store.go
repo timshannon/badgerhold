@@ -44,16 +44,17 @@ type Options struct {
 
 // DefaultOptions are a default set of options for opening a BadgerHold database
 // Includes badgers own default options
-var DefaultOptions = Options{
-	Options:          badger.DefaultOptions(""),
-	Encoder:          DefaultEncode,
-	Decoder:          DefaultDecode,
-	SequenceBandwith: 100,
+func DefaultOptions(path string) Options {
+	return Options{
+		Options:          badger.DefaultOptions(path),
+		Encoder:          DefaultEncode,
+		Decoder:          DefaultDecode,
+		SequenceBandwith: 100,
+	}
 }
 
 // Open opens or creates a badgerhold file.
 func Open(options Options) (*Store, error) {
-
 	encode = options.Encoder
 	decode = options.Decoder
 

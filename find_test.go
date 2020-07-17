@@ -48,34 +48,34 @@ func (i *ItemTest) equal(other *ItemTest) bool {
 }
 
 var testData = []ItemTest{
-	ItemTest{
+	{
 		Key:      0,
 		ID:       0,
 		Name:     "car",
 		Category: "vehicle",
 		Created:  time.Now().AddDate(-1, 0, 0),
 	},
-	ItemTest{
+	{
 		Key:      1,
 		ID:       1,
 		Name:     "truck",
 		Category: "vehicle",
 		Created:  time.Now().AddDate(0, 30, 0),
 	},
-	ItemTest{
+	{
 		Key:      2,
 		Name:     "seal",
 		Category: "animal",
 		Created:  time.Now().AddDate(-1, 0, 0),
 	},
-	ItemTest{
+	{
 		Key:      3,
 		ID:       3,
 		Name:     "van",
 		Category: "vehicle",
 		Created:  time.Now().AddDate(0, 30, 0),
 	},
-	ItemTest{
+	{
 		Key:      4,
 		ID:       8,
 		Name:     "pizza",
@@ -83,7 +83,7 @@ var testData = []ItemTest{
 		Created:  time.Now(),
 		Tags:     []string{"cooked"},
 	},
-	ItemTest{
+	{
 		Key:      5,
 		ID:       1,
 		Name:     "crow",
@@ -92,7 +92,7 @@ var testData = []ItemTest{
 		Color:    "blue",
 		Fruit:    "orange",
 	},
-	ItemTest{
+	{
 		Key:      6,
 		ID:       5,
 		Name:     "van",
@@ -101,7 +101,7 @@ var testData = []ItemTest{
 		Color:    "orange",
 		Fruit:    "orange",
 	},
-	ItemTest{
+	{
 		Key:      7,
 		ID:       5,
 		Name:     "pizza",
@@ -109,21 +109,21 @@ var testData = []ItemTest{
 		Created:  time.Now(),
 		Tags:     []string{"cooked"},
 	},
-	ItemTest{
+	{
 		Key:      8,
 		ID:       6,
 		Name:     "lion",
 		Category: "animal",
 		Created:  time.Now().AddDate(3, 0, 0),
 	},
-	ItemTest{
+	{
 		Key:      9,
 		ID:       7,
 		Name:     "bear",
 		Category: "animal",
 		Created:  time.Now().AddDate(3, 0, 0),
 	},
-	ItemTest{
+	{
 		Key:      10,
 		ID:       9,
 		Name:     "tacos",
@@ -132,7 +132,7 @@ var testData = []ItemTest{
 		Tags:     []string{"cooked"},
 		Color:    "orange",
 	},
-	ItemTest{
+	{
 		Key:      11,
 		ID:       10,
 		Name:     "golf cart",
@@ -141,7 +141,7 @@ var testData = []ItemTest{
 		Color:    "pink",
 		Fruit:    "apple",
 	},
-	ItemTest{
+	{
 		Key:      12,
 		ID:       11,
 		Name:     "oatmeal",
@@ -149,21 +149,21 @@ var testData = []ItemTest{
 		Created:  time.Now().AddDate(0, 0, -30),
 		Tags:     []string{"cooked"},
 	},
-	ItemTest{
+	{
 		Key:      13,
 		ID:       8,
 		Name:     "mouse",
 		Category: "animal",
 		Created:  time.Now(),
 	},
-	ItemTest{
+	{
 		Key:      14,
 		ID:       12,
 		Name:     "fish",
 		Category: "animal",
 		Created:  time.Now().AddDate(0, 0, -1),
 	},
-	ItemTest{
+	{
 		Key:      15,
 		ID:       13,
 		Name:     "fish",
@@ -171,7 +171,7 @@ var testData = []ItemTest{
 		Created:  time.Now(),
 		Tags:     []string{"cooked"},
 	},
-	ItemTest{
+	{
 		Key:      16,
 		ID:       9,
 		Name:     "zebra",
@@ -187,117 +187,117 @@ type test struct {
 }
 
 var testResults = []test{
-	test{
+	{
 		name:   "Equal Key",
 		query:  badgerhold.Where(badgerhold.Key).Eq(testData[4].Key),
 		result: []int{4},
 	},
-	test{
+	{
 		name:   "Equal Field Without Index",
 		query:  badgerhold.Where("Name").Eq(testData[1].Name),
 		result: []int{1},
 	},
-	test{
+	{
 		name:   "Equal Field With Index",
 		query:  badgerhold.Where("Category").Eq("vehicle"),
 		result: []int{0, 1, 3, 6, 11},
 	},
-	test{
+	{
 		name:   "Not Equal Key",
 		query:  badgerhold.Where(badgerhold.Key).Ne(testData[4].Key),
 		result: []int{0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name:   "Not Equal Field Without Index",
 		query:  badgerhold.Where("Name").Ne(testData[1].Name),
 		result: []int{0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name:   "Not Equal Field With Index",
 		query:  badgerhold.Where("Category").Ne("vehicle"),
 		result: []int{2, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name:   "Greater Than Key",
 		query:  badgerhold.Where(badgerhold.Key).Gt(testData[10].Key),
 		result: []int{11, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name:   "Greater Than Field Without Index",
 		query:  badgerhold.Where("ID").Gt(10),
 		result: []int{12, 14, 15},
 	},
-	test{
+	{
 		name:   "Greater Than Field With Index",
 		query:  badgerhold.Where("Category").Gt("food"),
 		result: []int{0, 1, 3, 6, 11},
 	},
-	test{
+	{
 		name:   "Less Than Key",
 		query:  badgerhold.Where(badgerhold.Key).Lt(testData[0].Key),
 		result: []int{},
 	},
-	test{
+	{
 		name:   "Less Than Field Without Index",
 		query:  badgerhold.Where("ID").Lt(5),
 		result: []int{0, 1, 2, 3, 5},
 	},
-	test{
+	{
 		name:   "Less Than Field With Index",
 		query:  badgerhold.Where("Category").Lt("food"),
 		result: []int{2, 5, 8, 9, 13, 14, 16},
 	},
-	test{
+	{
 		name:   "Less Than or Equal To Key",
 		query:  badgerhold.Where(badgerhold.Key).Le(testData[0].Key),
 		result: []int{0},
 	},
-	test{
+	{
 		name:   "Less Than or Equal To Field Without Index",
 		query:  badgerhold.Where("ID").Le(5),
 		result: []int{0, 1, 2, 3, 5, 6, 7},
 	},
-	test{
+	{
 		name:   "Less Than Field With Index",
 		query:  badgerhold.Where("Category").Le("food"),
 		result: []int{2, 5, 8, 9, 13, 14, 16, 4, 7, 10, 12, 15},
 	},
-	test{
+	{
 		name:   "Greater Than or Equal To Key",
 		query:  badgerhold.Where(badgerhold.Key).Ge(testData[10].Key),
 		result: []int{10, 11, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name:   "Greater Than or Equal To Field Without Index",
 		query:  badgerhold.Where("ID").Ge(10),
 		result: []int{12, 14, 15, 11},
 	},
-	test{
+	{
 		name:   "Greater Than or Equal To Field With Index",
 		query:  badgerhold.Where("Category").Ge("food"),
 		result: []int{0, 1, 3, 6, 11, 4, 7, 10, 12, 15},
 	},
-	test{
+	{
 		name:   "In",
 		query:  badgerhold.Where("ID").In(5, 8, 3),
 		result: []int{6, 7, 4, 13, 3},
 	},
-	test{
+	{
 		name:   "In on data from other index",
 		query:  badgerhold.Where("ID").In(5, 8, 3).Index("Category"),
 		result: []int{6, 7, 4, 13, 3},
 	},
-	test{
+	{
 		name:   "In on index",
 		query:  badgerhold.Where("Category").In("food", "animal").Index("Category"),
 		result: []int{2, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name:   "Regular Expression",
 		query:  badgerhold.Where("Name").RegExp(regexp.MustCompile("ea")),
 		result: []int{2, 9, 12},
 	},
-	test{
+	{
 		name: "Function Field",
 		query: badgerhold.Where("Name").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 			field := ra.Field()
@@ -310,7 +310,7 @@ var testResults = []test{
 		}),
 		result: []int{12},
 	},
-	test{
+	{
 		name: "Function Record",
 		query: badgerhold.Where("ID").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 			record := ra.Record()
@@ -323,7 +323,7 @@ var testResults = []test{
 		}),
 		result: []int{12},
 	},
-	test{
+	{
 		name: "Function Subquery",
 		query: badgerhold.Where("Name").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 			// find where name exists in more than one category
@@ -348,98 +348,98 @@ var testResults = []test{
 		}),
 		result: []int{14, 15},
 	},
-	test{
+	{
 		name:   "Time Comparison",
 		query:  badgerhold.Where("Created").Gt(time.Now()),
 		result: []int{1, 3, 8, 9, 11},
 	},
-	test{
+	{
 		name:   "Chained And Query with non-index lead",
 		query:  badgerhold.Where("Created").Gt(time.Now()).And("Category").Eq("vehicle"),
 		result: []int{1, 3, 11},
 	},
-	test{
+	{
 		name:   "Multiple Chained And Queries with non-index lead",
 		query:  badgerhold.Where("Created").Gt(time.Now()).And("Category").Eq("vehicle").And("ID").Ge(10),
 		result: []int{11},
 	},
-	test{
+	{
 		name:   "Chained And Query with leading Index", // also different order same criteria
 		query:  badgerhold.Where("Category").Eq("vehicle").And("ID").Ge(10).And("Created").Gt(time.Now()),
 		result: []int{11},
 	},
-	test{
+	{
 		name:   "Chained Or Query with leading index",
 		query:  badgerhold.Where("Category").Eq("vehicle").Or(badgerhold.Where("Category").Eq("animal")),
 		result: []int{0, 1, 3, 6, 11, 2, 5, 8, 9, 13, 14, 16},
 	},
-	test{
+	{
 		name:   "Chained Or Query with unioned data",
 		query:  badgerhold.Where("Category").Eq("animal").Or(badgerhold.Where("Name").Eq("fish")),
 		result: []int{2, 5, 8, 9, 13, 14, 16, 15},
 	},
-	test{
+	{
 		name: "Multiple Chained And + Or Query ",
 		query: badgerhold.Where("Category").Eq("animal").And("Created").Gt(time.Now()).
 			Or(badgerhold.Where("Name").Eq("fish").And("ID").Ge(13)),
 		result: []int{8, 9, 15},
 	},
-	test{
+	{
 		name:   "Nil Query",
 		query:  nil,
 		result: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name:   "Nil Comparison",
 		query:  badgerhold.Where("Tags").IsNil(),
 		result: []int{0, 1, 2, 3, 5, 6, 8, 9, 11, 13, 14, 16},
 	},
-	test{
+	{
 		name:   "String starts with",
 		query:  badgerhold.Where("Name").HasPrefix("golf"),
 		result: []int{11},
 	},
-	test{
+	{
 		name:   "String ends with",
 		query:  badgerhold.Where("Name").HasSuffix("cart"),
 		result: []int{11},
 	},
-	test{
+	{
 		name:   "Self-Field comparison",
 		query:  badgerhold.Where("Color").Eq(badgerhold.Field("Fruit")).And("Fruit").Ne(""),
 		result: []int{6},
 	},
-	test{
+	{
 		name:   "Test Key in secondary",
 		query:  badgerhold.Where("Category").Eq("food").And(badgerhold.Key).Eq(testData[4].Key),
 		result: []int{4},
 	},
-	test{
+	{
 		name:   "Skip",
 		query:  badgerhold.Where(badgerhold.Key).Gt(testData[10].Key).Skip(3),
 		result: []int{14, 15, 16},
 	},
-	test{
+	{
 		name:   "Skip Past Len",
 		query:  badgerhold.Where(badgerhold.Key).Gt(testData[10].Key).Skip(9),
 		result: []int{},
 	},
-	test{
+	{
 		name:   "Skip with Or query",
 		query:  badgerhold.Where("Category").Eq("vehicle").Or(badgerhold.Where("Category").Eq("animal")).Skip(4),
 		result: []int{11, 2, 5, 8, 9, 13, 14, 16},
 	},
-	test{
+	{
 		name:   "Skip with Or query, that crosses or boundary",
 		query:  badgerhold.Where("Category").Eq("vehicle").Or(badgerhold.Where("Category").Eq("animal")).Skip(8),
 		result: []int{9, 13, 14, 16},
 	},
-	test{
+	{
 		name:   "Limit",
 		query:  badgerhold.Where(badgerhold.Key).Gt(testData[10].Key).Limit(5),
 		result: []int{11, 12, 13, 14, 15},
 	},
-	test{
+	{
 		name: "Issue #8 - Function Field on index",
 		query: badgerhold.Where("Category").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 			field := ra.Field()
@@ -452,7 +452,7 @@ var testResults = []test{
 		}),
 		result: []int{2, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name: "Issue #8 - Function Field on a specific index",
 		query: badgerhold.Where("Category").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 			field := ra.Field()
@@ -465,7 +465,7 @@ var testResults = []test{
 		}).Index("Category"),
 		result: []int{2, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16},
 	},
-	test{
+	{
 		name: "Find item with max ID in each category - sub aggregate query",
 		query: badgerhold.Where("ID").MatchFunc(func(ra *badgerhold.RecordAccess) (bool, error) {
 			grp, err := ra.SubAggregateQuery(badgerhold.Where("Category").
@@ -481,22 +481,22 @@ var testResults = []test{
 		}),
 		result: []int{11, 14, 15},
 	},
-	test{
+	{
 		name:   "Indexed in",
 		query:  badgerhold.Where("Category").In("animal", "vehicle"),
 		result: []int{0, 1, 2, 3, 5, 6, 8, 9, 11, 13, 14, 16},
 	},
-	test{
+	{
 		name:   "Equal Field With Specific Index",
 		query:  badgerhold.Where("Category").Eq("vehicle").Index("Category"),
 		result: []int{0, 1, 3, 6, 11},
 	},
-	test{
+	{
 		name:   "Key test after lead field",
 		query:  badgerhold.Where("Category").Eq("food").And(badgerhold.Key).Gt(testData[10].Key),
 		result: []int{12, 15},
 	},
-	test{
+	{
 		name:   "Key test after lead index",
 		query:  badgerhold.Where("Category").Eq("food").Index("Category").And(badgerhold.Key).Gt(testData[10].Key),
 		result: []int{12, 15},
