@@ -53,7 +53,6 @@ var DefaultOptions = Options{
 
 // Open opens or creates a badgerhold file.
 func Open(options Options) (*Store, error) {
-
 	encode = options.Encoder
 	decode = options.Decoder
 
