@@ -45,7 +45,7 @@ func benchWrap(b *testing.B, options *badgerhold.Options, bench func(store *badg
 	defer os.RemoveAll(tempDir)
 
 	if options == nil {
-		options = badgerhold.DefaultOptions
+		options = &badgerhold.DefaultOptions
 	}
 
 	options.Dir = tempDir
