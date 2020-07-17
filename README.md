@@ -180,7 +180,7 @@ err := store.Insert(badgerhold.NextSequence(), data)
 The key value will be a `uint64`.
 
 If you want to know the value of the auto-incrementing Key that was generated using `badgerhold.NextSequence()`,
-then make sure to pass your data by value and that the `badgerholdKey` tagged field is of type `uint64`.
+then make sure to pass a pointer to your data and that the `badgerholdKey` tagged field is of type `uint64`.
 
 ```Go
 err := store.Insert(badgerhold.NextSequence(), &data)
