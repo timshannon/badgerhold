@@ -281,10 +281,18 @@ to create the database, create the tables you expect, and create any indexes.  W
 and put any type of data you want in it.
 
 ```Go
-store, err := badgerhold.Open(badgerhold.DefaultOptions(filename))
+options := badgerhold.DefaultOptions
+options.Dir = "data"
+options.ValueDir = "data"
+
+store, err := badgerhold.Open(options)
+defer store.Close()
 if err != nil {
-	//handle error
+	// handle error
+	log.Fatal(err)
 }
+
+
 err = store.Insert("key", &Item{
 	Name:    "Test Name",
 	Created: time.Now(),
