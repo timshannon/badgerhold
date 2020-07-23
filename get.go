@@ -6,6 +6,8 @@ package badgerhold
 
 import (
 	"errors"
+	"reflect"
+	"strings"
 
 	"github.com/dgraph-io/badger"
 )
@@ -36,9 +38,36 @@ func (s *Store) TxGet(tx *badger.Txn, key, result interface{}) error {
 		return ErrNotFound
 	}
 
-	return item.Value(func(value []byte) error {
+	err = item.Value(func(value []byte) error {
 		return decode(value, result)
 	})
+
+	if err != nil {
+		return err
+	}
+
+	tp := reflect.TypeOf(result)
+	for tp.Kind() == reflect.Ptr {
+		tp = tp.Elem()
+	}
+
+	var keyField string
+
+	for i := 0; i < tp.NumField(); i++ {
+		if strings.Contains(string(tp.Field(i).Tag), BadgerholdKeyTag) {
+			keyField = tp.Field(i).Name
+			break
+		}
+	}
+
+	if keyField != "" {
+		err := decodeKey(gk, reflect.ValueOf(result).Elem().FieldByName(keyField).Addr().Interface(), storer.Type())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Find retrieves a set of values from the badgerhold that matches the passed in query
