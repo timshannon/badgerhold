@@ -1062,3 +1062,63 @@ func TestNestedStructPointer(t *testing.T) {
 		}
 	})
 }
+
+func TestGetKeyStructTag(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type KeyTest struct {
+			Key   int `badgerholdKey:"Key"`
+			Value string
+		}
+
+		key := 3
+
+		err := store.Insert(key, &KeyTest{
+			Value: "test value",
+		})
+
+		if err != nil {
+			t.Fatalf("Error inserting KeyTest struct for Key struct tag testing. Error: %s", err)
+		}
+
+		var result KeyTest
+		err = store.Get(key, &result)
+
+		if err != nil {
+			t.Fatalf("Error running Get in TestKeyStructTag. ERROR: %s", err)
+		}
+
+		if result.Key != key {
+			t.Fatalf("Key struct tag was not set correctly.  Expected %d, got %d", key, result.Key)
+		}
+	})
+}
+
+func TestGetKeyStructTagIntoPtr(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type KeyTest struct {
+			Key   *int `badgerholdKey:"Key"`
+			Value string
+		}
+
+		key := 5
+
+		err := store.Insert(&key, &KeyTest{
+			Value: "test value",
+		})
+
+		if err != nil {
+			t.Fatalf("Error inserting KeyTest struct for Key struct tag testing. Error: %s", err)
+		}
+
+		var result KeyTest
+
+		err = store.Get(key, &result)
+		if err != nil {
+			t.Fatalf("Error running Get in TestKeyStructTag. ERROR: %s", err)
+		}
+
+		if result.Key == nil || *result.Key != key {
+			t.Fatalf("Key struct tag was not set correctly.  Expected %d, got %d", key, result.Key)
+		}
+	})
+}
