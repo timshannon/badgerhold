@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/timshannon/badgerhold"
+	"github.com/tiero/badgerhold"
 )
 
 var globalStore *badgerhold.Store
@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 
 	result := m.Run()
 
-	err = globalStore.Close()
+	err = globalStore.Badger().Close()
 	if err != nil {
 		panic(fmt.Sprintf("Error closing store: %s", err))
 	}

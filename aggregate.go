@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 )
 
 // AggregateResult allows you to access the results of an aggregate query

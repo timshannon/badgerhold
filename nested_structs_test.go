@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/timshannon/badgerhold"
+	"github.com/tiero/badgerhold"
 )
 
 type Nested struct {

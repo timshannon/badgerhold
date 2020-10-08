@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgraph-io/badger"
-	"github.com/timshannon/badgerhold"
+	"github.com/dgraph-io/badger/v2"
+	"github.com/tiero/badgerhold"
 )
 
 func TestInsert(t *testing.T) {
