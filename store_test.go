@@ -6,36 +6,14 @@ package badgerhold_test
 
 import (
 	"encoding/json"
-	"fmt"
+
+	// "fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/timshannon/badgerhold/v2"
 )
-
-var globalStore *badgerhold.Store
-
-func TestMain(m *testing.M) {
-	opt := testOptions()
-	var err error
-	globalStore, err = badgerhold.Open(opt)
-	if err != nil {
-		panic(fmt.Sprintf("Error opening %s: %s", opt.Dir, err))
-	}
-
-	result := m.Run()
-
-	err = globalStore.Close()
-	if err != nil {
-		panic(fmt.Sprintf("Error closing store: %s", err))
-	}
-	err = os.RemoveAll(opt.Dir)
-	if err != nil {
-		panic(fmt.Sprintf("Error cleaning up store dir %s: %s", opt.Dir, err))
-	}
-	os.Exit(result)
-}
 
 func TestOpen(t *testing.T) {
 	opt := testOptions()
@@ -124,14 +102,21 @@ func TestGetUnknownType(t *testing.T) {
 
 // utilities
 
-// testWrap creates a temporary database for testing and closes and cleans it up when
-// completed.
 func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {
-	tests(globalStore, t)
-	err := globalStore.Badger().DropAll()
+	opt := testOptions()
+	var err error
+	store, err := badgerhold.Open(opt)
 	if err != nil {
-		t.Fatalf("Error clearing badger db: %s", err)
+		t.Fatalf("Error opening %s: %s", opt.Dir, err)
 	}
+
+	if store == nil {
+		t.Fatalf("store is null!")
+	}
+
+	tests(store, t)
+	store.Close()
+	os.RemoveAll(opt.Dir)
 }
 
 type emptyLogger struct{}
