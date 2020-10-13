@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/timshannon/badgerhold"
+	"github.com/timshannon/badgerhold/v2"
 )
 
 var globalStore *badgerhold.Store
