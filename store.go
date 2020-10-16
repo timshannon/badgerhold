@@ -203,3 +203,18 @@ func (s *Store) getSequence(typeName string) (uint64, error) {
 func typePrefix(typeName string) []byte {
 	return []byte("bh_" + typeName)
 }
+
+func getKeyField(tp reflect.Type) (reflect.StructField, bool) {
+
+	for i := 0; i < tp.NumField(); i++ {
+		if strings.HasPrefix(string(tp.Field(i).Tag), BadgerholdKeyTag) {
+			return tp.Field(i), true
+		}
+
+		if tag := tp.Field(i).Tag.Get(badgerholdPrefixTag); tag == badgerholdPrefixKeyValue {
+			return tp.Field(i), true
+		}
+	}
+
+	return reflect.StructField{}, false
+}

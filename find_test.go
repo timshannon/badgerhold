@@ -139,8 +139,7 @@ var testData = []ItemTest{
 		Category: "vehicle",
 		Created:  time.Now().AddDate(0, 0, 30),
 		Color:    "pink",
-		Fruit:    "apple",
-	},
+		Fruit:    "apple"},
 	{
 		Key:      12,
 		ID:       11,

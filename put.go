@@ -87,26 +87,20 @@ func (s *Store) TxInsert(tx *badger.Txn, key, data interface{}) error {
 	if !dataVal.CanSet() {
 		return nil
 	}
-	dataType := dataVal.Type()
 
-	for i := 0; i < dataType.NumField(); i++ {
-		tf := dataType.Field(i)
-		if _, ok := tf.Tag.Lookup(BadgerholdKeyTag); ok ||
-			tf.Tag.Get(badgerholdPrefixTag) == badgerholdPrefixKeyValue {
-			fieldValue := dataVal.Field(i)
-			keyValue := reflect.ValueOf(key)
-			if keyValue.Type() != tf.Type {
-				break
-			}
-			if !fieldValue.CanSet() {
-				break
-			}
-			if !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(tf.Type).Interface()) {
-				break
-			}
-			fieldValue.Set(keyValue)
-			break
+	if keyField, ok := getKeyField(dataVal.Type()); ok {
+		fieldValue := dataVal.FieldByName(keyField.Name)
+		keyValue := reflect.ValueOf(key)
+		if keyValue.Type() != keyField.Type {
+			return nil
 		}
+		if !fieldValue.CanSet() {
+			return nil
+		}
+		if !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(keyField.Type).Interface()) {
+			return nil
+		}
+		fieldValue.Set(keyValue)
 	}
 
 	return nil

@@ -7,7 +7,6 @@ package badgerhold
 import (
 	"errors"
 	"reflect"
-	"strings"
 
 	"github.com/dgraph-io/badger/v2"
 )
@@ -51,17 +50,10 @@ func (s *Store) TxGet(tx *badger.Txn, key, result interface{}) error {
 		tp = tp.Elem()
 	}
 
-	var keyField string
+	keyField, ok := getKeyField(tp)
 
-	for i := 0; i < tp.NumField(); i++ {
-		if strings.Contains(string(tp.Field(i).Tag), BadgerholdKeyTag) {
-			keyField = tp.Field(i).Name
-			break
-		}
-	}
-
-	if keyField != "" {
-		err := decodeKey(gk, reflect.ValueOf(result).Elem().FieldByName(keyField).Addr().Interface(), storer.Type())
+	if ok {
+		err := decodeKey(gk, reflect.ValueOf(result).Elem().FieldByName(keyField.Name).Addr().Interface(), storer.Type())
 		if err != nil {
 			return err
 		}
