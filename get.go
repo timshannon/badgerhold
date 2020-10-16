@@ -76,3 +76,32 @@ func (s *Store) Find(result interface{}, query *Query) error {
 func (s *Store) TxFind(tx *badger.Txn, result interface{}, query *Query) error {
 	return findQuery(tx, result, query)
 }
+
+// FindOne returns a single record, and so result is NOT a slice, but an pointer to a struct, if no record is found
+// that matches the query, then it returns ErrNotFound
+func (s *Store) FindOne(result interface{}, query *Query) error {
+	return s.Badger().View(func(tx *badger.Txn) error {
+		return s.TxFindOne(tx, result, query)
+	})
+}
+
+// TxFindOne allows you to pass in your own badger transaction to retrieve a single record from the badgerhold
+func (s *Store) TxFindOne(tx *badger.Txn, result interface{}, query *Query) error {
+	return findOneQuery(tx, result, query)
+}
+
+// Count returns the current record count for the passed in datatype
+// func (s *Store) Count(dataType interface{}, query *Query) (int, error) {
+// 	count := 0
+// 	err := s.Bolt().View(func(tx *badger.Tx) error {
+// 		var txErr error
+// 		count, txErr = s.TxCount(tx, dataType, query)
+// 		return txErr
+// 	})
+// 	return count, err
+// }
+
+// // TxCount returns the current record count from within the given transaction for the passed in datatype
+// func (s *Store) TxCount(tx *badger.Tx, dataType interface{}, query *Query) (int, error) {
+// 	return s.countQuery(tx, dataType, query)
+// }

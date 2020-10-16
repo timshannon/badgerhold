@@ -269,7 +269,7 @@ var testResults = []test{
 	{
 		name:   "Greater Than or Equal To Field Without Index",
 		query:  badgerhold.Where("ID").Ge(10),
-		result: []int{12, 14, 15, 11},
+		result: []int{11, 12, 14, 15},
 	},
 	{
 		name:   "Greater Than or Equal To Field With Index",
@@ -279,17 +279,17 @@ var testResults = []test{
 	{
 		name:   "In",
 		query:  badgerhold.Where("ID").In(5, 8, 3),
-		result: []int{6, 7, 4, 13, 3},
+		result: []int{3, 6, 7, 4, 13},
 	},
 	{
 		name:   "In on data from other index",
 		query:  badgerhold.Where("ID").In(5, 8, 3).Index("Category"),
-		result: []int{6, 7, 4, 13, 3},
+		result: []int{3, 6, 7, 4, 13},
 	},
 	{
 		name:   "In on index",
 		query:  badgerhold.Where("Category").In("food", "animal").Index("Category"),
-		result: []int{2, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16},
+		result: []int{4, 2, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16},
 	},
 	{
 		name:   "Regular Expression",
@@ -431,7 +431,7 @@ var testResults = []test{
 	{
 		name:   "Skip with Or query, that crosses or boundary",
 		query:  badgerhold.Where("Category").Eq("vehicle").Or(badgerhold.Where("Category").Eq("animal")).Skip(8),
-		result: []int{9, 13, 14, 16},
+		result: []int{16, 9, 13, 14},
 	},
 	{
 		name:   "Limit",
@@ -1119,5 +1119,41 @@ func TestGetKeyStructTagIntoPtr(t *testing.T) {
 		if result.Key == nil || *result.Key != key {
 			t.Fatalf("Key struct tag was not set correctly.  Expected %d, got %d", key, result.Key)
 		}
+	})
+}
+
+func TestFindOne(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		insertTestData(t, store)
+		for _, tst := range testResults {
+			t.Run(tst.name, func(t *testing.T) {
+				result := &ItemTest{}
+				err := store.FindOne(result, tst.query)
+				if len(tst.result) == 0 && err == badgerhold.ErrNotFound {
+					return
+				}
+
+				if err != nil {
+					t.Fatalf("Error finding one data from badgerhold: %s", err)
+				}
+
+				if !result.equal(&testData[tst.result[0]]) {
+					t.Fatalf("Result doesnt match the first record in the testing result set. "+
+						"Expected key of %d got %d", &testData[tst.result[0]].Key, result.Key)
+				}
+			})
+		}
+	})
+}
+
+func TestFindOneWithNonPtr(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatalf("Running FindOne with non pointer did not panic!")
+			}
+		}()
+		result := ItemTest{}
+		_ = store.FindOne(result, badgerhold.Where("Name").Eq("blah"))
 	})
 }

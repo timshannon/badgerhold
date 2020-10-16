@@ -1010,3 +1010,70 @@ func aggregateQuery(tx *badger.Txn, dataType interface{}, query *Query, groupBy 
 
 	return result, nil
 }
+
+func findOneQuery(tx *badger.Txn, result interface{}, query *Query) error {
+	if query == nil {
+		query = &Query{}
+	}
+	originalLimit := query.limit
+
+	query.limit = 1
+
+	query.writable = false
+
+	resultVal := reflect.ValueOf(result)
+	if resultVal.Kind() != reflect.Ptr {
+		panic("result argument must be an address")
+	}
+
+	elType := resultVal.Elem().Type()
+	tp := elType
+
+	for tp.Kind() == reflect.Ptr {
+		tp = tp.Elem()
+	}
+
+	keyField, hasKeyField := getKeyField(tp)
+
+	val := reflect.New(tp)
+
+	found := false
+
+	err := runQuery(tx, val.Interface(), query, nil, query.skip,
+		func(r *record) error {
+			found = true
+			var rowValue reflect.Value
+
+			if elType.Kind() == reflect.Ptr {
+				rowValue = r.value
+			} else {
+				rowValue = r.value.Elem()
+			}
+
+			if hasKeyField {
+				rowKey := rowValue
+				for rowKey.Kind() == reflect.Ptr {
+					rowKey = rowKey.Elem()
+				}
+				err := decodeKey(r.key, rowKey.FieldByName(keyField.Name).Addr().Interface(), tp.Name())
+				if err != nil {
+					return err
+				}
+			}
+
+			resultVal.Elem().Set(r.value.Elem())
+
+			return nil
+		})
+
+	query.limit = originalLimit
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		return ErrNotFound
+	}
+
+	return nil
+}
