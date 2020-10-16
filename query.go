@@ -800,17 +800,7 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 		tp = tp.Elem()
 	}
 
-	var keyType reflect.Type
-	var keyField string
-
-	for i := 0; i < tp.NumField(); i++ {
-		if strings.Contains(string(tp.Field(i).Tag), BadgerholdKeyTag) ||
-			tp.Field(i).Tag.Get(badgerholdPrefixTag) == badgerholdPrefixKeyValue {
-			keyType = tp.Field(i).Type
-			keyField = tp.Field(i).Name
-			break
-		}
-	}
+	keyField, hasKeyField := getKeyField(tp)
 
 	val := reflect.New(tp)
 
@@ -824,12 +814,12 @@ func findQuery(tx *badger.Txn, result interface{}, query *Query) error {
 				rowValue = r.value.Elem()
 			}
 
-			if keyType != nil {
+			if hasKeyField {
 				rowKey := rowValue
 				for rowKey.Kind() == reflect.Ptr {
 					rowKey = rowKey.Elem()
 				}
-				err := decodeKey(r.key, rowKey.FieldByName(keyField).Addr().Interface(), tp.Name())
+				err := decodeKey(r.key, rowKey.FieldByName(keyField.Name).Addr().Interface(), tp.Name())
 				if err != nil {
 					return err
 				}
