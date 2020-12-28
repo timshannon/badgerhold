@@ -91,17 +91,32 @@ func (s *Store) TxFindOne(tx *badger.Txn, result interface{}, query *Query) erro
 }
 
 // Count returns the current record count for the passed in datatype
-// func (s *Store) Count(dataType interface{}, query *Query) (int, error) {
-// 	count := 0
-// 	err := s.Bolt().View(func(tx *badger.Tx) error {
-// 		var txErr error
-// 		count, txErr = s.TxCount(tx, dataType, query)
-// 		return txErr
-// 	})
-// 	return count, err
-// }
+func (s *Store) Count(dataType interface{}, query *Query) (int, error) {
+	count := 0
+	err := s.Badger().View(func(tx *badger.Txn) error {
+		var txErr error
+		count, txErr = s.TxCount(tx, dataType, query)
+		return txErr
+	})
+	return count, err
+}
 
-// // TxCount returns the current record count from within the given transaction for the passed in datatype
-// func (s *Store) TxCount(tx *badger.Tx, dataType interface{}, query *Query) (int, error) {
-// 	return s.countQuery(tx, dataType, query)
-// }
+// TxCount returns the current record count from within the given transaction for the passed in datatype
+func (s *Store) TxCount(tx *badger.Txn, dataType interface{}, query *Query) (int, error) {
+	return countQuery(tx, dataType, query)
+}
+
+// ForEach runs the function fn against every record that matches the query
+// Useful for when working with large sets of data that you don't want to hold the entire result
+// set in memory, similar to database cursors
+// Return an error from fn, will stop the cursor from iterating
+func (s *Store) ForEach(query *Query, fn interface{}) error {
+	return s.Badger().View(func(tx *badger.Txn) error {
+		return s.TxForEach(tx, query, fn)
+	})
+}
+
+// TxForEach is the same as ForEach but you get to specify your transaction
+func (s *Store) TxForEach(tx *badger.Txn, query *Query, fn interface{}) error {
+	return forEach(tx, query, fn)
+}
