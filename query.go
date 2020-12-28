@@ -1077,3 +1077,51 @@ func findOneQuery(tx *badger.Txn, result interface{}, query *Query) error {
 
 	return nil
 }
+
+func forEach(tx *badger.Txn, query *Query, fn interface{}) error {
+	if query == nil {
+		query = &Query{}
+	}
+
+	fnVal := reflect.ValueOf(fn)
+	argType := reflect.TypeOf(fn).In(0)
+
+	if argType.Kind() == reflect.Ptr {
+		argType = argType.Elem()
+	}
+
+	dataType := reflect.New(argType).Interface()
+
+	return runQuery(tx, dataType, query, nil, query.skip, func(r *record) error {
+		out := fnVal.Call([]reflect.Value{r.value})
+		if len(out) != 1 {
+			return fmt.Errorf("foreach function does not return an error")
+		}
+
+		if out[0].IsNil() {
+			return nil
+		}
+
+		return out[0].Interface().(error)
+	})
+}
+
+func countQuery(tx *badger.Txn, dataType interface{}, query *Query) (int, error) {
+	if query == nil {
+		query = &Query{}
+	}
+
+	count := 0
+
+	err := runQuery(tx, dataType, query, nil, query.skip,
+		func(r *record) error {
+			count++
+			return nil
+		})
+
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}

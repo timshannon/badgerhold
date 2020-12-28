@@ -122,6 +122,23 @@ store.UpdateMatching(&Person{}, badgerhold.Where("Death").Lt(badgerhold.Field("B
 })
 ```
 
+If you simply want to count the number of records returned by a query use the `Count` method:
+
+```Go
+// need to pass in empty datatype so badgerhold knows what type to count
+count, err := store.Count(&Person{}, badgerhold.Where("Death").Lt(badgerhold.Field("Birth")))
+```
+
+You can also use `FindOne` which is a shorthand for `Find` + `Limit(1)` which returns a single record instead of a slice
+of records, and will return an `ErrNotFound` if no record is found, unlike a normal `Find` query where an empty slice
+would be returned with no error.
+
+```Go
+	result := &ItemTest{}
+	err := store.FindOne(result, query)
+```
+
+
 ### Keys in Structs
 
 A common scenario is to store the badgerhold Key in the same struct that is stored in the badgerDB value. You can automatically populate a record's Key in a struct by using the `badgerhold:"key"` struct tag when running `Find` queries.
@@ -175,6 +192,20 @@ type User struct {
 ```
 
 The example above will only allow one record of type `User` to exist with a given `Email` field. Any insert, update or upsert that would violate that constraint will fail and return the `badgerhold.ErrUniqueExists` error.
+
+### ForEach
+
+When working with large datasets, you may not want to have to store the entire dataset in memory. It's be much more efficient to work with a single record at a time rather than grab all the records and loop through them, which is what cursors are used for in databases. In BadgerHold you can accomplish the same thing by calling ForEach:
+
+```Go
+err := store.ForEach(badgerhold.Where("Id").Gt(4), func(record *Item) error {
+	// do stuff with record
+
+	// if you return an error, then the query will stop iterating through records
+
+	return nil
+})
+```
 
 ### Aggregate Queries
 
