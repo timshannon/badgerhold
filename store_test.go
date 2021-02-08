@@ -16,7 +16,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/timshannon/badgerhold/v2"
+	"github.com/timshannon/badgerhold/v3"
 )
 
 func TestOpen(t *testing.T) {
