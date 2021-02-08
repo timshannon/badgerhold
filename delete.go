@@ -7,7 +7,7 @@ package badgerhold
 import (
 	"reflect"
 
-	"github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v3"
 )
 
 // Delete deletes a record from the bolthold, datatype just needs to be an example of the type stored so that

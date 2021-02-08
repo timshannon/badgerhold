@@ -1,5 +1,7 @@
-module github.com/timshannon/badgerhold/v2
+module github.com/timshannon/badgerhold/v3
 
-require github.com/dgraph-io/badger/v2 v2.2007.2
+require (
+	github.com/dgraph-io/badger/v3 v3.2011.1
+)
 
 go 1.13

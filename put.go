@@ -8,7 +8,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v3"
 )
 
 // ErrKeyExists is the error returned when data is being Inserted for a Key that already exists
