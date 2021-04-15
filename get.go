@@ -24,9 +24,9 @@ func (s *Store) Get(key, result interface{}) error {
 // TxGet allows you to pass in your own badger transaction to retrieve a value from the badgerhold and puts it
 // into result
 func (s *Store) TxGet(tx *badger.Txn, key, result interface{}) error {
-	storer := newStorer(result)
+	storer := s.newStorer(result)
 
-	gk, err := encodeKey(key, storer.Type())
+	gk, err := s.encodeKey(key, storer.Type())
 
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (s *Store) TxGet(tx *badger.Txn, key, result interface{}) error {
 	}
 
 	err = item.Value(func(value []byte) error {
-		return decode(value, result)
+		return s.decode(value, result)
 	})
 
 	if err != nil {
@@ -53,7 +53,7 @@ func (s *Store) TxGet(tx *badger.Txn, key, result interface{}) error {
 	keyField, ok := getKeyField(tp)
 
 	if ok {
-		err := decodeKey(gk, reflect.ValueOf(result).Elem().FieldByName(keyField.Name).Addr().Interface(), storer.Type())
+		err := s.decodeKey(gk, reflect.ValueOf(result).Elem().FieldByName(keyField.Name).Addr().Interface(), storer.Type())
 		if err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func (s *Store) Find(result interface{}, query *Query) error {
 
 // TxFind allows you to pass in your own badger transaction to retrieve a set of values from the badgerhold
 func (s *Store) TxFind(tx *badger.Txn, result interface{}, query *Query) error {
-	return findQuery(tx, result, query)
+	return s.findQuery(tx, result, query)
 }
 
 // FindOne returns a single record, and so result is NOT a slice, but an pointer to a struct, if no record is found
@@ -87,7 +87,7 @@ func (s *Store) FindOne(result interface{}, query *Query) error {
 
 // TxFindOne allows you to pass in your own badger transaction to retrieve a single record from the badgerhold
 func (s *Store) TxFindOne(tx *badger.Txn, result interface{}, query *Query) error {
-	return findOneQuery(tx, result, query)
+	return s.findOneQuery(tx, result, query)
 }
 
 // Count returns the current record count for the passed in datatype
@@ -103,7 +103,7 @@ func (s *Store) Count(dataType interface{}, query *Query) (int, error) {
 
 // TxCount returns the current record count from within the given transaction for the passed in datatype
 func (s *Store) TxCount(tx *badger.Txn, dataType interface{}, query *Query) (int, error) {
-	return countQuery(tx, dataType, query)
+	return s.countQuery(tx, dataType, query)
 }
 
 // ForEach runs the function fn against every record that matches the query
@@ -118,5 +118,5 @@ func (s *Store) ForEach(query *Query, fn interface{}) error {
 
 // TxForEach is the same as ForEach but you get to specify your transaction
 func (s *Store) TxForEach(tx *badger.Txn, query *Query, fn interface{}) error {
-	return forEach(tx, query, fn)
+	return s.forEach(tx, query, fn)
 }

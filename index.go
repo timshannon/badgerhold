@@ -24,10 +24,10 @@ type Index struct {
 }
 
 // adds an item to the index
-func indexAdd(storer Storer, tx *badger.Txn, key []byte, data interface{}) error {
+func (s *Store) indexAdd(storer Storer, tx *badger.Txn, key []byte, data interface{}) error {
 	indexes := storer.Indexes()
 	for name, index := range indexes {
-		err := indexUpdate(storer.Type(), name, index, tx, key, data, false)
+		err := s.indexUpdate(storer.Type(), name, index, tx, key, data, false)
 		if err != nil {
 			return err
 		}
@@ -36,13 +36,13 @@ func indexAdd(storer Storer, tx *badger.Txn, key []byte, data interface{}) error
 	return nil
 }
 
-// // removes an item from the index
-// // be sure to pass the data from the old record, not the new one
-func indexDelete(storer Storer, tx *badger.Txn, key []byte, originalData interface{}) error {
+// removes an item from the index
+// be sure to pass the data from the old record, not the new one
+func (s *Store) indexDelete(storer Storer, tx *badger.Txn, key []byte, originalData interface{}) error {
 	indexes := storer.Indexes()
 
 	for name, index := range indexes {
-		err := indexUpdate(storer.Type(), name, index, tx, key, originalData, true)
+		err := s.indexUpdate(storer.Type(), name, index, tx, key, originalData, true)
 		if err != nil {
 			return err
 		}
@@ -51,8 +51,8 @@ func indexDelete(storer Storer, tx *badger.Txn, key []byte, originalData interfa
 	return nil
 }
 
-// // adds or removes a specific index on an item
-func indexUpdate(typeName, indexName string, index Index, tx *badger.Txn, key []byte, value interface{},
+// adds or removes a specific index on an item
+func (s *Store) indexUpdate(typeName, indexName string, index Index, tx *badger.Txn, key []byte, value interface{},
 	delete bool) error {
 
 	indexKey, err := index.IndexFunc(indexName, value)
@@ -78,7 +78,7 @@ func indexUpdate(typeName, indexName string, index Index, tx *badger.Txn, key []
 			return ErrUniqueExists
 		}
 		err = item.Value(func(iVal []byte) error {
-			return decode(iVal, &indexValue)
+			return s.decode(iVal, &indexValue)
 		})
 		if err != nil {
 			return err
@@ -95,7 +95,7 @@ func indexUpdate(typeName, indexName string, index Index, tx *badger.Txn, key []
 		return tx.Delete(indexKey)
 	}
 
-	iVal, err := encode(indexValue)
+	iVal, err := s.encode(indexValue)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ type iterBookmark struct {
 	seekKey []byte
 }
 
-func newIterator(tx *badger.Txn, typeName string, query *Query, bookmark *iterBookmark) *iterator {
+func (s *Store) newIterator(tx *badger.Txn, typeName string, query *Query, bookmark *iterBookmark) *iterator {
 	i := &iterator{
 		tx: tx,
 	}
@@ -231,13 +231,13 @@ func newIterator(tx *badger.Txn, typeName string, query *Query, bookmark *iterBo
 					val := reflect.New(query.dataType)
 
 					err := item.Value(func(v []byte) error {
-						return decode(v, val.Interface())
+						return s.decode(v, val.Interface())
 					})
 					if err != nil {
 						return nil, err
 					}
 
-					ok, err = matchesAllCriteria(criteria, key, true, typeName, val.Interface())
+					ok, err = s.matchesAllCriteria(criteria, key, true, typeName, val.Interface())
 					if err != nil {
 						return nil, err
 					}
@@ -271,7 +271,7 @@ func newIterator(tx *badger.Txn, typeName string, query *Query, bookmark *iterBo
 			key := item.KeyCopy(nil)
 			// no currentRow on indexes as it refers to multiple rows
 			// remove index prefix for matching
-			ok, err := matchesAllCriteria(criteria, key[len(prefix):], true, "", nil)
+			ok, err := s.matchesAllCriteria(criteria, key[len(prefix):], true, "", nil)
 			if err != nil {
 				return nil, err
 			}
@@ -280,7 +280,7 @@ func newIterator(tx *badger.Txn, typeName string, query *Query, bookmark *iterBo
 				item.Value(func(v []byte) error {
 					// append the slice of keys stored in the index
 					var keys = make(keyList, 0)
-					err := decode(v, &keys)
+					err := s.decode(v, &keys)
 					if err != nil {
 						return err
 					}

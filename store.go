@@ -31,6 +31,9 @@ type Store struct {
 	db               *badger.DB
 	sequenceBandwith uint64
 	sequences        *sync.Map
+
+	encode EncodeFunc
+	decode DecodeFunc
 }
 
 // Options allows you set different options from the defaults
@@ -53,9 +56,6 @@ var DefaultOptions = Options{
 
 // Open opens or creates a badgerhold file.
 func Open(options Options) (*Store, error) {
-	encode = options.Encoder
-	decode = options.Decoder
-
 	db, err := badger.Open(options.Options)
 	if err != nil {
 		return nil, err
@@ -65,6 +65,9 @@ func Open(options Options) (*Store, error) {
 		db:               db,
 		sequenceBandwith: options.SequenceBandwith,
 		sequences:        &sync.Map{},
+
+		encode: options.Encoder,
+		decode: options.Decoder,
 	}, nil
 }
 
@@ -122,11 +125,9 @@ func (t *anonStorer) Indexes() map[string]Index {
 // newStorer creates a type which satisfies the Storer interface based on reflection of the passed in dataType
 // if the Type doesn't meet the requirements of a Storer (i.e. doesn't have a name) it panics
 // You can avoid any reflection costs, by implementing the Storer interface on a type
-func newStorer(dataType interface{}) Storer {
-	s, ok := dataType.(Storer)
-
-	if ok {
-		return s
+func (s *Store) newStorer(dataType interface{}) Storer {
+	if storer, ok := dataType.(Storer); ok {
+		return storer
 	}
 
 	tp := reflect.TypeOf(dataType)
@@ -176,7 +177,7 @@ func newStorer(dataType interface{}) Storer {
 						tp = tp.Elem()
 					}
 
-					return encode(tp.FieldByName(name).Interface())
+					return s.encode(tp.FieldByName(name).Interface())
 				},
 				Unique: unique,
 			}
