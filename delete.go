@@ -20,8 +20,8 @@ func (s *Store) Delete(key, dataType interface{}) error {
 
 // TxDelete is the same as Delete except it allows you specify your own transaction
 func (s *Store) TxDelete(tx *badger.Txn, key, dataType interface{}) error {
-	storer := newStorer(dataType)
-	gk, err := encodeKey(key, storer.Type())
+	storer := s.newStorer(dataType)
+	gk, err := s.encodeKey(key, storer.Type())
 
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (s *Store) TxDelete(tx *badger.Txn, key, dataType interface{}) error {
 	}
 
 	item.Value(func(bVal []byte) error {
-		return decode(bVal, value)
+		return s.decode(bVal, value)
 	})
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func (s *Store) TxDelete(tx *badger.Txn, key, dataType interface{}) error {
 	}
 
 	// remove any indexes
-	return indexDelete(storer, tx, gk, value)
+	return s.indexDelete(storer, tx, gk, value)
 }
 
 // DeleteMatching deletes all of the records that match the passed in query
@@ -64,5 +64,5 @@ func (s *Store) DeleteMatching(dataType interface{}, query *Query) error {
 
 // TxDeleteMatching does the same as DeleteMatching, but allows you to specify your own transaction
 func (s *Store) TxDeleteMatching(tx *badger.Txn, dataType interface{}, query *Query) error {
-	return deleteQuery(tx, dataType, query)
+	return s.deleteQuery(tx, dataType, query)
 }

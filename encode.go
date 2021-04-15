@@ -15,9 +15,6 @@ type EncodeFunc func(value interface{}) ([]byte, error)
 // DecodeFunc is a function for decoding a value from bytes
 type DecodeFunc func(data []byte, value interface{}) error
 
-var encode EncodeFunc
-var decode DecodeFunc
-
 // DefaultEncode is the default encoding func for badgerhold (Gob)
 func DefaultEncode(value interface{}) ([]byte, error) {
 	var buff bytes.Buffer
@@ -47,8 +44,8 @@ func DefaultDecode(data []byte, value interface{}) error {
 
 // encodeKey encodes key values with a type prefix which allows multiple different types
 // to exist in the badger DB
-func encodeKey(key interface{}, typeName string) ([]byte, error) {
-	encoded, err := encode(key)
+func (s *Store) encodeKey(key interface{}, typeName string) ([]byte, error) {
+	encoded, err := s.encode(key)
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +54,6 @@ func encodeKey(key interface{}, typeName string) ([]byte, error) {
 }
 
 // decodeKey decodes the key value and removes the type prefix
-func decodeKey(data []byte, key interface{}, typeName string) error {
-	return decode(data[len(typePrefix(typeName)):], key)
+func (s *Store) decodeKey(data []byte, key interface{}, typeName string) error {
+	return s.decode(data[len(typePrefix(typeName)):], key)
 }

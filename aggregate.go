@@ -181,7 +181,7 @@ func (s *Store) FindAggregate(dataType interface{}, query *Query, groupBy ...str
 // groupBy is optional
 func (s *Store) TxFindAggregate(tx *badger.Txn, dataType interface{}, query *Query,
 	groupBy ...string) ([]*AggregateResult, error) {
-	return aggregateQuery(tx, dataType, query, groupBy...)
+	return s.aggregateQuery(tx, dataType, query, groupBy...)
 }
 
 func tryFloat(val reflect.Value) float64 {
