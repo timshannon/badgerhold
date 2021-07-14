@@ -37,9 +37,14 @@ func NextSequence() interface{} {
 //
 // To use this with badgerhold.NextSequence() use a type of `uint64` for the key field.
 func (s *Store) Insert(key, data interface{}) error {
-	return s.Badger().Update(func(tx *badger.Txn) error {
+	err := s.Badger().Update(func(tx *badger.Txn) error {
 		return s.TxInsert(tx, key, data)
 	})
+
+	if err == badger.ErrConflict {
+		return s.Insert(key, data)
+	}
+	return err
 }
 
 // TxInsert is the same as Insert except it allows you specify your own transaction
@@ -72,7 +77,7 @@ func (s *Store) TxInsert(tx *badger.Txn, key, data interface{}) error {
 
 	// insert data
 	err = tx.Set(gk, value)
-
+	// err = conflictRetry(func() error { return tx.Set(gk, value) })
 	if err != nil {
 		return err
 	}
@@ -164,9 +169,14 @@ func (s *Store) TxUpdate(tx *badger.Txn, key interface{}, data interface{}) erro
 // Upsert inserts the record into the badgerhold if it doesn't exist.  If it does already exist, then it updates
 // the existing record
 func (s *Store) Upsert(key interface{}, data interface{}) error {
-	return s.Badger().Update(func(tx *badger.Txn) error {
+	err := s.Badger().Update(func(tx *badger.Txn) error {
 		return s.TxUpsert(tx, key, data)
 	})
+
+	if err == badger.ErrConflict {
+		return s.Upsert(key, data)
+	}
+	return err
 }
 
 // TxUpsert is the same as Upsert except it allows you to specify your own transaction

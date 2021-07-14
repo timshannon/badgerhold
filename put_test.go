@@ -6,6 +6,7 @@ package badgerhold_test
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -655,5 +656,23 @@ func TestUniqueConstraint(t *testing.T) {
 			}
 		})
 
+	})
+}
+
+func TestIssue46ConcurrentIndexInserts(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		var wg sync.WaitGroup
+
+		for i := range testData {
+			wg.Add(1)
+			go func(gt *testing.T) {
+				defer wg.Done()
+				err := store.Insert(testData[i].Key, testData[i])
+				if err != nil {
+					gt.Fatalf("Error inserting test data for find test: %s", err)
+				}
+			}(t)
+		}
+		wg.Wait()
 	})
 }
