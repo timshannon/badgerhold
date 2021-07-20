@@ -5,8 +5,6 @@
 package badgerhold
 
 import (
-	"reflect"
-
 	"github.com/dgraph-io/badger/v3"
 )
 
@@ -27,7 +25,7 @@ func (s *Store) TxDelete(tx *badger.Txn, key, dataType interface{}) error {
 		return err
 	}
 
-	value := reflect.New(reflect.TypeOf(dataType)).Interface()
+	value := newElemType(dataType)
 
 	item, err := tx.Get(gk)
 	if err == badger.ErrKeyNotFound {
