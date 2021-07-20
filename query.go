@@ -392,7 +392,7 @@ func (c *Criterion) test(s *Store, testValue interface{}, encoded bool, keyType 
 		if len(testValue.([]byte)) != 0 {
 			if c.operator == in {
 				// value is a slice of values, use c.inValues
-				value = reflect.New(reflect.TypeOf(c.inValues[0])).Interface()
+				value = newElemType(c.inValues[0])
 				err := s.decode(testValue.([]byte), value)
 				if err != nil {
 					return false, err
@@ -400,7 +400,7 @@ func (c *Criterion) test(s *Store, testValue interface{}, encoded bool, keyType 
 
 			} else {
 				// used with keys
-				value = reflect.New(reflect.TypeOf(c.value)).Interface()
+				value = newElemType(c.value)
 				if keyType != "" {
 					err := s.decodeKey(testValue.([]byte), value, keyType)
 					if err != nil {

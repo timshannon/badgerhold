@@ -133,7 +133,7 @@ func (s *Store) TxUpdate(tx *badger.Txn, key interface{}, data interface{}) erro
 	}
 
 	// delete any existing indexes
-	existingVal := reflect.New(reflect.TypeOf(data)).Interface()
+	existingVal := newElemType(data)
 
 	err = existingItem.Value(func(existing []byte) error {
 		return s.decode(existing, existingVal)
@@ -184,7 +184,7 @@ func (s *Store) TxUpsert(tx *badger.Txn, key interface{}, data interface{}) erro
 	if err == nil {
 		// existing entry found
 		// delete any existing indexes
-		existingVal := reflect.New(reflect.TypeOf(data)).Interface()
+		existingVal := newElemType(data)
 
 		err = existingItem.Value(func(existing []byte) error {
 			return s.decode(existing, existingVal)

@@ -219,3 +219,12 @@ func getKeyField(tp reflect.Type) (reflect.StructField, bool) {
 
 	return reflect.StructField{}, false
 }
+
+func newElemType(datatype interface{}) interface{} {
+	tp := reflect.TypeOf(datatype)
+	for tp.Kind() == reflect.Ptr {
+		tp = tp.Elem()
+	}
+
+	return reflect.New(tp).Interface()
+}
