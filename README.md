@@ -58,6 +58,10 @@ Fields must be exported, and thus always need to start with an upper-case letter
 - SortBy - `Where("field").Eq(value).SortBy("field1", "field2")`
 - Reverse - `Where("field").Eq(value).SortBy("field").Reverse()`
 - Index - `Where("field").Eq(value).Index("indexName")`
+- Contains - `Where("field").Contains(val1)`
+- ContainsAll - `Where("field").Contains(val1, val2, val3)`
+- ContainsAny - `Where("field").Contains(val1, val2, val3)`
+- HasKey - `Where("field").HasKey(val1) // to test if a Map value has a key`
 
 If you want to run a query's criteria against the Key value, you can use the `badgerhold.Key` constant:
 
@@ -178,6 +182,54 @@ If you want to know the value of the auto-incrementing Key that was generated us
 
 ```Go
 err := store.Insert(badgerhold.NextSequence(), &data)
+```
+
+### Slices in Structs and Queries
+
+When querying slice fields in structs you can use the `Contains`, `ContainsAll` and `ContainsAny` criterion.
+
+```Go
+val := struct {
+    Set []string
+}{
+    Set: []string{"1", "2", "3"},
+}
+bh.Where("Set").Contains("1") // true
+bh.Where("Set").ContainsAll("1", "3") // true
+bh.Where("Set").ContainsAll("1", "3", "4") // false
+bh.Where("Set").ContainsAny("1", "7", "4") // true
+```
+
+The `In`, `ContainsAll` and `ContainsAny` critierion accept a slice of `interface{}` values. This means you can build your queries by passing in your values as arguments:
+
+```
+where := badgerhold.Where("Id").In("1", "2", "3")
+```
+
+However if you have an existing slice of values to test against, you can't pass in that slice because it is not of type
+`[]interface{}`.
+
+```Go
+t := []string{"1", "2", "3", "4"}
+where := badgerhold.Where("Id").In(t...) // compile error
+```
+
+Instead you need to copy your slice into another slice of empty interfaces:
+
+```Go
+t := []string{"1", "2", "3", "4"}
+s := make([]interface{}, len(t))
+for i, v := range t {
+    s[i] = v
+}
+where := badgerhold.Where("Id").In(s...)
+```
+
+You can use the helper function `badgerhold.Slice` which does exactly that.
+
+```Go
+t := []string{"1", "2", "3", "4"}
+where := badgerhold.Where("Id").In(badgerhold.Slice(t)...)
 ```
 
 ### Unique Constraints

@@ -25,6 +25,7 @@ type ItemTest struct {
 	Fruit       string
 	UpdateField string
 	UpdateIndex string `badgerholdIndex:"UpdateIndex"`
+	MapVal      map[string]string
 }
 
 func (i *ItemTest) equal(other *ItemTest) bool {
@@ -81,7 +82,7 @@ var testData = []ItemTest{
 		Name:     "pizza",
 		Category: "food",
 		Created:  time.Now(),
-		Tags:     []string{"cooked"},
+		Tags:     []string{"cooked", "takeout"},
 	},
 	{
 		Key:      5,
@@ -107,7 +108,7 @@ var testData = []ItemTest{
 		Name:     "pizza",
 		Category: "food",
 		Created:  time.Now(),
-		Tags:     []string{"cooked"},
+		Tags:     []string{"cooked", "takeout"},
 	},
 	{
 		Key:      8,
@@ -129,7 +130,7 @@ var testData = []ItemTest{
 		Name:     "tacos",
 		Category: "food",
 		Created:  time.Now().AddDate(-3, 0, 0),
-		Tags:     []string{"cooked"},
+		Tags:     []string{"cooked", "takeout"},
 		Color:    "orange",
 	},
 	{
@@ -146,7 +147,7 @@ var testData = []ItemTest{
 		Name:     "oatmeal",
 		Category: "food",
 		Created:  time.Now().AddDate(0, 0, -30),
-		Tags:     []string{"cooked"},
+		Tags:     []string{"cooked", "healthy"},
 	},
 	{
 		Key:      13,
@@ -168,7 +169,7 @@ var testData = []ItemTest{
 		Name:     "fish",
 		Category: "food",
 		Created:  time.Now(),
-		Tags:     []string{"cooked"},
+		Tags:     []string{"cooked", "healthy"},
 	},
 	{
 		Key:      16,
@@ -176,6 +177,9 @@ var testData = []ItemTest{
 		Name:     "zebra",
 		Category: "animal",
 		Created:  time.Now(),
+		MapVal: map[string]string{
+			"test": "testval",
+		},
 	},
 }
 
@@ -499,6 +503,46 @@ var testResults = []test{
 		name:   "Key test after lead index",
 		query:  badgerhold.Where("Category").Eq("food").Index("Category").And(badgerhold.Key).Gt(testData[10].Key),
 		result: []int{12, 15},
+	},
+	{
+		name:   "Contains",
+		query:  badgerhold.Where("Tags").Contains("takeout"),
+		result: []int{4, 7, 10},
+	},
+	{
+		name:   "Contains Any",
+		query:  badgerhold.Where("Tags").ContainsAny("takeout", "healthy"),
+		result: []int{4, 7, 10, 12, 15},
+	},
+	{
+		name:   "Contains All",
+		query:  badgerhold.Where("Tags").ContainsAll("takeout", "healthy"),
+		result: []int{},
+	},
+	{
+		name:   "Contains All #2",
+		query:  badgerhold.Where("Tags").ContainsAll("cooked", "healthy"),
+		result: []int{12, 15},
+	},
+	{
+		name:   "bh.Slice",
+		query:  badgerhold.Where("Tags").ContainsAll(badgerhold.Slice([]string{"cooked", "healthy"})...),
+		result: []int{12, 15},
+	},
+	{
+		name:   "Contains on non-slice",
+		query:  badgerhold.Where("Category").Contains("cooked"),
+		result: []int{},
+	},
+	{
+		name:   "Map Has Key",
+		query:  badgerhold.Where("MapVal").HasKey("test"),
+		result: []int{16},
+	},
+	{
+		name:   "Map Has Key 2",
+		query:  badgerhold.Where("MapVal").HasKey("other"),
+		result: []int{},
 	},
 }
 
