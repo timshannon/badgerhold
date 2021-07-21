@@ -28,6 +28,11 @@ const (
 	isnil        // test's for nil
 	sw           // string starts with
 	ew           // string ends with
+	hk           // match map keys
+
+	contains // slice only
+	any      // slice only
+	all      // slice only
 )
 
 // Key is shorthand for specifying a query to run again the Key in a badgerhold, simply returns ""
@@ -55,6 +60,19 @@ type Query struct {
 	reverse bool
 }
 
+// Slice turns a slice of any time into []interface{} by copying the slice values so it can be easily passed
+// into queries that accept variadic parameters.
+// Will panic if value is not a slice
+func Slice(value interface{}) []interface{} {
+	slc := reflect.ValueOf(value)
+
+	s := make([]interface{}, slc.Len(), slc.Len()) // panics if value is not slice, array or map
+	for i := range s {
+		s[i] = slc.Index(i).Interface()
+	}
+	return s
+}
+
 // IsEmpty returns true if the query is an empty query
 // an empty query matches against everything
 func (q *Query) IsEmpty() bool {
@@ -77,7 +95,7 @@ type Criterion struct {
 	query    *Query
 	operator int
 	value    interface{}
-	inValues []interface{}
+	values   []interface{}
 }
 
 func hasMatchFunc(criteria []*Criterion) bool {
@@ -157,6 +175,40 @@ func (q *Query) Limit(amount int) *Query {
 	q.limit = amount
 
 	return q
+}
+
+// Contains tests if the current field is a slice that contains the passed in value
+func (c *Criterion) Contains(value interface{}) *Query {
+	return c.op(contains, value)
+}
+
+// ContainsAll tests if the current field is a slice that contains all of the passed in values.  If any of the
+// values are NOT contained in the slice, then no match is made
+func (c *Criterion) ContainsAll(values ...interface{}) *Query {
+	c.operator = all
+	c.values = values
+
+	q := c.query
+	q.fieldCriteria[q.currentField] = append(q.fieldCriteria[q.currentField], c)
+
+	return q
+}
+
+// ContainsAny tests if the current field is a slice that contains any of the passed in values.  If any of the
+// values are contained in the slice, then a match is made
+func (c *Criterion) ContainsAny(values ...interface{}) *Query {
+	c.operator = any
+	c.values = values
+
+	q := c.query
+	q.fieldCriteria[q.currentField] = append(q.fieldCriteria[q.currentField], c)
+
+	return q
+}
+
+// HasKey tests if the field has a map key matching the passed in value
+func (c *Criterion) HasKey(value interface{}) *Query {
+	return c.op(hk, value)
 }
 
 // SortBy sorts the results by the given fields name
@@ -308,7 +360,7 @@ func (c *Criterion) Le(value interface{}) *Query {
 // In test if the current field is a member of the slice of values passed in
 func (c *Criterion) In(values ...interface{}) *Query {
 	c.operator = in
-	c.inValues = values
+	c.values = values
 
 	q := c.query
 	q.fieldCriteria[q.currentField] = append(q.fieldCriteria[q.currentField], c)
@@ -387,27 +439,27 @@ func (c *Criterion) MatchFunc(match MatchFunc) *Query {
 
 // test if the criterion passes with the passed in value
 func (c *Criterion) test(s *Store, testValue interface{}, encoded bool, keyType string, currentRow interface{}) (bool, error) {
-	var value interface{}
+	var recordValue interface{}
 	if encoded {
 		if len(testValue.([]byte)) != 0 {
 			if c.operator == in {
-				// value is a slice of values, use c.inValues
-				value = newElemType(c.inValues[0])
-				err := s.decode(testValue.([]byte), value)
+				// value is a slice of values, use c.values
+				recordValue = newElemType(c.values[0])
+				err := s.decode(testValue.([]byte), recordValue)
 				if err != nil {
 					return false, err
 				}
 
 			} else {
 				// used with keys
-				value = newElemType(c.value)
+				recordValue = newElemType(c.value)
 				if keyType != "" {
-					err := s.decodeKey(testValue.([]byte), value, keyType)
+					err := s.decodeKey(testValue.([]byte), recordValue, keyType)
 					if err != nil {
 						return false, err
 					}
 				} else {
-					err := s.decode(testValue.([]byte), value)
+					err := s.decode(testValue.([]byte), recordValue)
 					if err != nil {
 						return false, err
 					}
@@ -415,13 +467,13 @@ func (c *Criterion) test(s *Store, testValue interface{}, encoded bool, keyType 
 			}
 		}
 	} else {
-		value = testValue
+		recordValue = testValue
 	}
 
 	switch c.operator {
 	case in:
-		for i := range c.inValues {
-			result, err := c.compare(value, c.inValues[i], currentRow)
+		for i := range c.values {
+			result, err := c.compare(recordValue, c.values[i], currentRow)
 			if err != nil {
 				return false, err
 			}
@@ -432,23 +484,85 @@ func (c *Criterion) test(s *Store, testValue interface{}, encoded bool, keyType 
 
 		return false, nil
 	case re:
-		return c.value.(*regexp.Regexp).Match([]byte(fmt.Sprintf("%s", value))), nil
+		return c.value.(*regexp.Regexp).Match([]byte(fmt.Sprintf("%s", recordValue))), nil
+	case hk:
+		v := reflect.ValueOf(recordValue).MapIndex(reflect.ValueOf(c.value))
+		return !reflect.ValueOf(v).IsZero(), nil
 	case fn:
 		return c.value.(MatchFunc)(&RecordAccess{
-			field:  value,
+			field:  recordValue,
 			record: currentRow,
 			query:  c.query,
 			store:  s,
 		})
 	case isnil:
-		return reflect.ValueOf(value).IsNil(), nil
+		return reflect.ValueOf(recordValue).IsNil(), nil
 	case sw:
-		return strings.HasPrefix(fmt.Sprintf("%s", value), fmt.Sprintf("%s", c.value)), nil
+		return strings.HasPrefix(fmt.Sprintf("%s", recordValue), fmt.Sprintf("%s", c.value)), nil
 	case ew:
-		return strings.HasSuffix(fmt.Sprintf("%s", value), fmt.Sprintf("%s", c.value)), nil
+		return strings.HasSuffix(fmt.Sprintf("%s", recordValue), fmt.Sprintf("%s", c.value)), nil
+	case contains, any, all:
+		slc := reflect.ValueOf(recordValue)
+		kind := slc.Kind()
+		if kind != reflect.Slice && kind != reflect.Array {
+			// make slice containing recordValue
+			for slc.Kind() == reflect.Ptr {
+				slc = slc.Elem()
+			}
+			slc = reflect.Append(reflect.MakeSlice(reflect.SliceOf(slc.Type()), 0, 1), slc)
+		}
+
+		if c.operator == contains {
+			for i := 0; i < slc.Len(); i++ {
+				result, err := c.compare(slc.Index(i), c.value, currentRow)
+				if err != nil {
+					return false, err
+				}
+				if result == 0 {
+					return true, nil
+				}
+			}
+			return false, nil
+		}
+
+		if c.operator == any {
+			for i := 0; i < slc.Len(); i++ {
+				for k := range c.values {
+					result, err := c.compare(slc.Index(i), c.values[k], currentRow)
+					if err != nil {
+						return false, err
+					}
+					if result == 0 {
+						return true, nil
+					}
+				}
+			}
+
+			return false, nil
+		}
+
+		// c.operator == all {
+		for k := range c.values {
+			found := false
+			for i := 0; i < slc.Len(); i++ {
+				result, err := c.compare(slc.Index(i), c.values[k], currentRow)
+				if err != nil {
+					return false, err
+				}
+				if result == 0 {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false, nil
+			}
+		}
+
+		return true, nil
 	default:
 		// comparison operators
-		result, err := c.compare(value, c.value, currentRow)
+		result, err := c.compare(recordValue, c.value, currentRow)
 		if err != nil {
 			return false, err
 		}
@@ -541,7 +655,7 @@ func (c *Criterion) String() string {
 	case ge:
 		s += ">="
 	case in:
-		return "in " + fmt.Sprintf("%v", c.inValues)
+		return "in " + fmt.Sprintf("%v", c.values)
 	case re:
 		s += "matches the regular expression"
 	case fn:
