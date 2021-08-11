@@ -6,6 +6,7 @@ package badgerhold_test
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -655,5 +656,89 @@ func TestUniqueConstraint(t *testing.T) {
 			}
 		})
 
+	})
+}
+
+func TestIssue46ConcurrentIndexInserts(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		var wg sync.WaitGroup
+
+		for i := range testData {
+			wg.Add(1)
+			go func(gt *testing.T, i int) {
+				defer wg.Done()
+				err := store.Insert(testData[i].Key, testData[i])
+				if err != nil {
+					gt.Fatalf("Error inserting test data for find test: %s", err)
+				}
+			}(t, i)
+		}
+		wg.Wait()
+	})
+}
+
+func TestIssue46ConcurrentIndexUpserts(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		var wg sync.WaitGroup
+
+		for i := range testData {
+			wg.Add(1)
+			go func(gt *testing.T, i int) {
+				defer wg.Done()
+				err := store.Upsert(testData[i].Key, testData[i])
+				if err != nil {
+					gt.Fatalf("Error inserting test data for find test: %s", err)
+				}
+			}(t, i)
+		}
+		wg.Wait()
+	})
+}
+
+func TestIssue46ConcurrentIndexUpdate(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		insertTestData(t, store)
+		var wg sync.WaitGroup
+
+		for i := range testData {
+			wg.Add(1)
+			go func(gt *testing.T, i int) {
+				defer wg.Done()
+				err := store.Update(testData[i].Key, testData[i])
+				if err != nil {
+					gt.Fatalf("Error inserting test data for find test: %s", err)
+				}
+			}(t, i)
+		}
+		wg.Wait()
+	})
+}
+
+func TestIssue46ConcurrentIndexUpdateMatching(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		insertTestData(t, store)
+		var wg sync.WaitGroup
+
+		for i := range testData {
+			wg.Add(1)
+			go func(gt *testing.T, i int) {
+				defer wg.Done()
+				err := store.UpdateMatching(ItemTest{}, badgerhold.Where(badgerhold.Key).
+					Eq(testData[i].Key), func(r interface{}) error {
+					record, ok := r.(*ItemTest)
+					if !ok {
+						return fmt.Errorf("Record isn't the correct type!  Got %T",
+							r)
+					}
+					record.Name = record.Name
+
+					return nil
+				})
+				if err != nil {
+					gt.Fatalf("Error updating test data for test: %s", err)
+				}
+			}(t, i)
+		}
+		wg.Wait()
 	})
 }
