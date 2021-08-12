@@ -74,7 +74,7 @@ func Slice(value interface{}) []interface{} {
 }
 
 // Returns an empty query. An empty query matches every record for a type.
-func Empty() *Query {
+func EmptyQuery() *Query {
 	return &Query{}
 }
 
