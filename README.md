@@ -63,6 +63,12 @@ Fields must be exported, and thus always need to start with an upper-case letter
 - ContainsAny - `Where("field").Contains(val1, val2, val3)`
 - HasKey - `Where("field").HasKey(val1) // to test if a Map value has a key`
 
+To create an empty query you can use Empty():
+
+```Go
+store.Find(&result, badgerhold.Empty())
+```
+
 If you want to run a query's criteria against the Key value, you can use the `badgerhold.Key` constant:
 
 ```Go
