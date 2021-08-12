@@ -66,7 +66,7 @@ Fields must be exported, and thus always need to start with an upper-case letter
 To create an empty query you can use Empty():
 
 ```Go
-store.Find(&result, badgerhold.Empty())
+store.Find(&result, badgerhold.EmptyQuery())
 ```
 
 If you want to run a query's criteria against the Key value, you can use the `badgerhold.Key` constant:
