@@ -673,7 +673,7 @@ type record struct {
 	value reflect.Value
 }
 
-func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, retrievedKeys keyList, skip int,
+func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, retrievedKeys KeyList, skip int,
 	action func(r *record) error) error {
 	storer := s.newStorer(dataType)
 
@@ -703,7 +703,7 @@ func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, ret
 		return fmt.Errorf("The index %s does not exist", query.index)
 	}
 
-	newKeys := make(keyList, 0)
+	newKeys := make(KeyList, 0)
 
 	limit := query.limit - len(retrievedKeys)
 
