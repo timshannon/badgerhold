@@ -442,27 +442,23 @@ func (c *Criterion) test(s *Store, testValue interface{}, encoded bool, keyType 
 	var recordValue interface{}
 	if encoded {
 		if len(testValue.([]byte)) != 0 {
-			if c.operator == in {
+			if c.operator == in || c.operator == any || c.operator == all {
 				// value is a slice of values, use c.values
 				recordValue = newElemType(c.values[0])
-				err := s.decode(testValue.([]byte), recordValue)
+			} else {
+				recordValue = newElemType(c.value)
+			}
+
+			// used with keys
+			if keyType != "" {
+				err := s.decodeKey(testValue.([]byte), recordValue, keyType)
 				if err != nil {
 					return false, err
 				}
-
 			} else {
-				// used with keys
-				recordValue = newElemType(c.value)
-				if keyType != "" {
-					err := s.decodeKey(testValue.([]byte), recordValue, keyType)
-					if err != nil {
-						return false, err
-					}
-				} else {
-					err := s.decode(testValue.([]byte), recordValue)
-					if err != nil {
-						return false, err
-					}
+				err := s.decode(testValue.([]byte), recordValue)
+				if err != nil {
+					return false, err
 				}
 			}
 		}

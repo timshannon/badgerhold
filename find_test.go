@@ -544,6 +544,11 @@ var testResults = []test{
 		query:  badgerhold.Where("MapVal").HasKey("other"),
 		result: []int{},
 	},
+	{
+		name:   "Issue 66 - Keys with In operator",
+		query:  badgerhold.Where(badgerhold.Key).In(1, 2, 3),
+		result: []int{1, 2, 3},
+	},
 }
 
 func insertTestData(t *testing.T, store *badgerhold.Store) {
