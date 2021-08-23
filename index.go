@@ -60,7 +60,7 @@ func (s *Store) indexUpdate(typeName, indexName string, index Index, tx *badger.
 		return nil
 	}
 
-	indexValue := make(keyList, 0)
+	indexValue := make(KeyList, 0)
 
 	if err != nil {
 		return err
@@ -108,10 +108,10 @@ func indexKeyPrefix(typeName, indexName string) []byte {
 	return []byte(indexPrefix + ":" + typeName + ":" + indexName)
 }
 
-// keyList is a slice of unique, sorted keys([]byte) such as what an index points to
-type keyList [][]byte
+// KeyList is a slice of unique, sorted keys([]byte) such as what an index points to
+type KeyList [][]byte
 
-func (v *keyList) add(key []byte) {
+func (v *KeyList) add(key []byte) {
 	i := sort.Search(len(*v), func(i int) bool {
 		return bytes.Compare((*v)[i], key) >= 0
 	})
@@ -126,7 +126,7 @@ func (v *keyList) add(key []byte) {
 	(*v)[i] = key
 }
 
-func (v *keyList) remove(key []byte) {
+func (v *KeyList) remove(key []byte) {
 	i := sort.Search(len(*v), func(i int) bool {
 		return bytes.Compare((*v)[i], key) >= 0
 	})
@@ -138,7 +138,7 @@ func (v *keyList) remove(key []byte) {
 	}
 }
 
-func (v *keyList) in(key []byte) bool {
+func (v *KeyList) in(key []byte) bool {
 	i := sort.Search(len(*v), func(i int) bool {
 		return bytes.Compare((*v)[i], key) >= 0
 	})
@@ -279,7 +279,7 @@ func (s *Store) newIterator(tx *badger.Txn, typeName string, query *Query, bookm
 			if ok {
 				item.Value(func(v []byte) error {
 					// append the slice of keys stored in the index
-					var keys = make(keyList, 0)
+					var keys = make(KeyList, 0)
 					err := s.decode(v, &keys)
 					if err != nil {
 						return err
