@@ -7,6 +7,7 @@ package badgerhold_test
 import (
 	"encoding/json"
 	"fmt"
+
 	// "fmt"
 	"io/ioutil"
 	"os"
@@ -182,6 +183,32 @@ func TestIssue115(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+	})
+}
+
+func TestIssue70TypePrefixCollision(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type TestStruct struct {
+			Value int
+		}
+
+		type TestStructCollision struct {
+			Value int
+		}
+
+		for i := 0; i < 5; i++ {
+			ok(t, store.Insert(i, TestStruct{Value: i}))
+			ok(t, store.Insert(i, TestStructCollision{Value: i}))
+		}
+
+		query := badgerhold.Where(badgerhold.Key).In(0, 1, 2, 3, 4)
+		var results []TestStruct
+		ok(t, store.Find(
+			&results,
+			query,
+		))
+
+		equals(t, 5, len(results))
 	})
 }
 
