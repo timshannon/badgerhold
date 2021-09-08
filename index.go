@@ -56,15 +56,14 @@ func (s *Store) indexUpdate(typeName, indexName string, index Index, tx *badger.
 	delete bool) error {
 
 	indexKey, err := index.IndexFunc(indexName, value)
+	if err != nil {
+		return err
+	}
 	if indexKey == nil {
 		return nil
 	}
 
 	indexValue := make(KeyList, 0)
-
-	if err != nil {
-		return err
-	}
 
 	indexKey = append(indexKeyPrefix(typeName, indexName), indexKey...)
 
@@ -277,7 +276,7 @@ func (s *Store) newIterator(tx *badger.Txn, typeName string, query *Query, bookm
 			}
 
 			if ok {
-				item.Value(func(v []byte) error {
+				err = item.Value(func(v []byte) error {
 					// append the slice of keys stored in the index
 					var keys = make(KeyList, 0)
 					err := s.decode(v, &keys)
@@ -288,6 +287,9 @@ func (s *Store) newIterator(tx *badger.Txn, typeName string, query *Query, bookm
 					nKeys = append(nKeys, [][]byte(keys)...)
 					return nil
 				})
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			i.lastSeek = key
