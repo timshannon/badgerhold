@@ -6,6 +6,7 @@ package badgerhold_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	// "fmt"
@@ -16,7 +17,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/timshannon/badgerhold/v3"
+	v3 "github.com/timshannon/badgerhold/v3"
+	"github.com/timshannon/badgerhold/v4"
 )
 
 func TestOpen(t *testing.T) {
@@ -104,6 +106,90 @@ func TestGetUnknownType(t *testing.T) {
 	}
 }
 
+type Issue115 struct{ Name string }
+
+func (i *Issue115) Type() string { return "Item" }
+func (i *Issue115) Indexes() map[string]badgerhold.Index {
+	return map[string]badgerhold.Index{
+		"Name": badgerhold.Index{
+			IndexFunc: func(_ string, value interface{}) ([]byte, error) {
+				// If the upsert wants to delete an existing value first,
+				// value could be a **Item instead of *Item
+				// panic: interface conversion: interface {} is **Item, not *Item
+				v := value.(*Issue115).Name
+				return []byte(v), nil
+			},
+			Unique: false,
+		},
+	}
+}
+
+func TestIssue115(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		item := &Issue115{"Name"}
+		for i := 0; i < 2; i++ {
+			err := store.Upsert("key", item)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+}
+
+func TestIssue70TypePrefixCollisionWithV3(t *testing.T) {
+	testWrapV3(t, func(store *v3.Store, t *testing.T) {
+
+		type TestStruct struct {
+			Value int
+		}
+
+		type TestStructCollision struct {
+			Value int
+		}
+
+		for i := 0; i < 5; i++ {
+			ok(t, store.Insert(i, TestStruct{Value: i}))
+			ok(t, store.Insert(i, TestStructCollision{Value: i}))
+		}
+
+		query := v3.Where(v3.Key).In(0, 1, 2, 3, 4)
+		var results []TestStruct
+		err := store.Find(
+			&results,
+			query,
+		)
+
+		equals(t, errors.New("unexpected EOF"), err) // prefix error
+	})
+}
+
+func TestIssue70TypePrefixCollisionWithV4(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+
+		type TestStruct struct {
+			Value int
+		}
+
+		type TestStructCollision struct {
+			Value int
+		}
+
+		for i := 0; i < 5; i++ {
+			ok(t, store.Insert(i, TestStruct{Value: i}))
+			ok(t, store.Insert(i, TestStructCollision{Value: i}))
+		}
+
+		query := badgerhold.Where(badgerhold.Key).In(0, 1, 2, 3, 4)
+		var results []TestStruct
+		ok(t, store.Find(
+			&results,
+			query,
+		))
+
+		equals(t, 5, len(results))
+	})
+}
+
 // utilities
 
 func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {
@@ -113,6 +199,26 @@ func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {
 func testWrapWithOpt(t *testing.T, opt badgerhold.Options, tests func(store *badgerhold.Store, t *testing.T)) {
 	var err error
 	store, err := badgerhold.Open(opt)
+	if err != nil {
+		t.Fatalf("Error opening %s: %s", opt.Dir, err)
+	}
+
+	if store == nil {
+		t.Fatalf("store is null!")
+	}
+
+	tests(store, t)
+	store.Close()
+	os.RemoveAll(opt.Dir)
+}
+
+func testWrapV3(t *testing.T, tests func(store *v3.Store, t *testing.T)) {
+	testWrapV3WithOpt(t, testV3Options(), tests)
+}
+
+func testWrapV3WithOpt(t *testing.T, opt v3.Options, tests func(store *v3.Store, t *testing.T)) {
+	var err error
+	store, err := v3.Open(opt)
 	if err != nil {
 		t.Fatalf("Error opening %s: %s", opt.Dir, err)
 	}
@@ -147,6 +253,20 @@ func testOptions() badgerhold.Options {
 	return opt
 }
 
+func testV3Options() v3.Options {
+	opt := v3.DefaultOptions
+	opt.Dir = tempdir()
+	opt.ValueDir = opt.Dir
+	opt.Logger = emptyLogger{}
+	// opt.ValueLogLoadingMode = options.FileIO // slower but less memory usage
+	// opt.TableLoadingMode = options.FileIO
+	// opt.NumMemtables = 1
+	// opt.NumLevelZeroTables = 1
+	// opt.NumLevelZeroTablesStall = 2
+	// opt.NumCompactors = 1
+	return opt
+}
+
 // tempdir returns a temporary dir path.
 func tempdir() string {
 	name, err := ioutil.TempDir("", "badgerhold-")
@@ -154,62 +274,6 @@ func tempdir() string {
 		panic(err)
 	}
 	return name
-}
-
-type Issue115 struct{ Name string }
-
-func (i *Issue115) Type() string { return "Item" }
-func (i *Issue115) Indexes() map[string]badgerhold.Index {
-	return map[string]badgerhold.Index{
-		"Name": badgerhold.Index{
-			IndexFunc: func(_ string, value interface{}) ([]byte, error) {
-				// If the upsert wants to delete an existing value first,
-				// value could be a **Item instead of *Item
-				// panic: interface conversion: interface {} is **Item, not *Item
-				v := value.(*Issue115).Name
-				return []byte(v), nil
-			},
-			Unique: false,
-		},
-	}
-}
-
-func TestIssue115(t *testing.T) {
-	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
-		item := &Issue115{"Name"}
-		for i := 0; i < 2; i++ {
-			err := store.Upsert("key", item)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-	})
-}
-
-func TestIssue70TypePrefixCollision(t *testing.T) {
-	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
-		type TestStruct struct {
-			Value int
-		}
-
-		type TestStructCollision struct {
-			Value int
-		}
-
-		for i := 0; i < 5; i++ {
-			ok(t, store.Insert(i, TestStruct{Value: i}))
-			ok(t, store.Insert(i, TestStructCollision{Value: i}))
-		}
-
-		query := badgerhold.Where(badgerhold.Key).In(0, 1, 2, 3, 4)
-		var results []TestStruct
-		ok(t, store.Find(
-			&results,
-			query,
-		))
-
-		equals(t, 5, len(results))
-	})
 }
 
 // assert fails the test if the condition is false.

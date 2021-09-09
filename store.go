@@ -202,7 +202,7 @@ func (s *Store) getSequence(typeName string) (uint64, error) {
 }
 
 func typePrefix(typeName string) []byte {
-	return []byte("bh_" + typeName)
+	return []byte("bh_" + typeName + ":")
 }
 
 func getKeyField(tp reflect.Type) (reflect.StructField, bool) {
