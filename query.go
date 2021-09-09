@@ -1218,12 +1218,12 @@ func (s *Store) forEach(tx *badger.Txn, query *Query, fn interface{}) error {
 	})
 }
 
-func (s *Store) countQuery(tx *badger.Txn, dataType interface{}, query *Query) (int, error) {
+func (s *Store) countQuery(tx *badger.Txn, dataType interface{}, query *Query) (uint64, error) {
 	if query == nil {
 		query = &Query{}
 	}
 
-	count := 0
+	var count uint64
 
 	err := s.runQuery(tx, dataType, query, nil, query.skip,
 		func(r *record) error {

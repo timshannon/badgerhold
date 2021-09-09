@@ -94,8 +94,8 @@ func (s *Store) TxFindOne(tx *badger.Txn, result interface{}, query *Query) erro
 }
 
 // Count returns the current record count for the passed in datatype
-func (s *Store) Count(dataType interface{}, query *Query) (int, error) {
-	count := 0
+func (s *Store) Count(dataType interface{}, query *Query) (uint64, error) {
+	var count uint64
 	err := s.Badger().View(func(tx *badger.Txn) error {
 		var txErr error
 		count, txErr = s.TxCount(tx, dataType, query)
@@ -105,7 +105,7 @@ func (s *Store) Count(dataType interface{}, query *Query) (int, error) {
 }
 
 // TxCount returns the current record count from within the given transaction for the passed in datatype
-func (s *Store) TxCount(tx *badger.Txn, dataType interface{}, query *Query) (int, error) {
+func (s *Store) TxCount(tx *badger.Txn, dataType interface{}, query *Query) (uint64, error) {
 	return s.countQuery(tx, dataType, query)
 }
 

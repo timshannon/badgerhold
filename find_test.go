@@ -1217,9 +1217,7 @@ func TestCount(t *testing.T) {
 					t.Fatalf("Error counting data from badgerhold: %s", err)
 				}
 
-				if count != len(tst.result) {
-					t.Fatalf("Count result is %d wanted %d.", count, len(tst.result))
-				}
+				equals(t, uint64(len(tst.result)), count)
 			})
 		}
 	})
