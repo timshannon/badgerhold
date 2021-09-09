@@ -162,6 +162,7 @@ func (s *Store) newStorer(dataType interface{}) Storer {
 			}
 		} else if tag := storer.rType.Field(i).Tag.Get(badgerholdPrefixTag); tag != "" {
 			if tag == badgerholdPrefixIndexValue {
+				// indexName is stored cannonically as the field name NOT the name in the tag
 				indexName = storer.rType.Field(i).Name
 			} else if tag == badgerholdPrefixUniqueValue {
 				indexName = storer.rType.Field(i).Name

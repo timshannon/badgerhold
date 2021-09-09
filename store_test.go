@@ -190,6 +190,22 @@ func TestIssue70TypePrefixCollisionWithV4(t *testing.T) {
 	})
 }
 
+func TestIssue71IndexByCustomName(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type Person struct {
+			Name     string
+			Division string `badgerholdIndex:"IdxDivision"`
+		}
+
+		record := Person{Name: "test", Division: "testDivision"}
+
+		ok(t, store.Insert(1, record))
+
+		var result []Person
+		ok(t, store.Find(&result, badgerhold.Where("Division").Eq(record.Division).Index("IdxDivision")))
+	})
+}
+
 // utilities
 
 func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {

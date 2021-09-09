@@ -249,6 +249,29 @@ func (q *Query) Index(indexName string) *Query {
 	return q
 }
 
+func (q *Query) validateIndex() error {
+	if q.index == "" {
+		return nil
+	}
+	if q.dataType == nil {
+		panic("Can't check for a valid index before query datatype is set")
+	}
+
+	if _, ok := q.dataType.FieldByName(q.index); ok {
+		return nil
+	}
+
+	for i := 0; i < q.dataType.NumField(); i++ {
+		if tag := q.dataType.Field(i).Tag.Get(BadgerHoldIndexTag); tag == q.index {
+			q.index = q.dataType.Field(i).Name
+			return nil
+		}
+	}
+	// no field name or custom index name found
+
+	return fmt.Errorf("The index %s does not exist", q.index)
+}
+
 // Or creates another separate query that gets unioned with any other results in the query
 // Or will panic if the query passed in contains a limit or skip value, as they are only
 // allowed on top level queries
@@ -684,6 +707,7 @@ func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, ret
 	}
 
 	query.dataType = reflect.TypeOf(tp)
+	query.validateIndex()
 
 	if len(query.sort) > 0 {
 		return s.runQuerySort(tx, dataType, query, action)
