@@ -35,7 +35,7 @@ func (s *Store) TxDelete(tx *badger.Txn, key, dataType interface{}) error {
 		return err
 	}
 
-	item.Value(func(bVal []byte) error {
+	err = item.Value(func(bVal []byte) error {
 		return s.decode(bVal, value)
 	})
 	if err != nil {

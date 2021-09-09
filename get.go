@@ -36,6 +36,9 @@ func (s *Store) TxGet(tx *badger.Txn, key, result interface{}) error {
 	if err == badger.ErrKeyNotFound {
 		return ErrNotFound
 	}
+	if err != nil {
+		return err
+	}
 
 	err = item.Value(func(value []byte) error {
 		return s.decode(value, result)

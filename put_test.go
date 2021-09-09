@@ -5,6 +5,7 @@
 package badgerhold_test
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -740,5 +741,31 @@ func TestIssue46ConcurrentIndexUpdateMatching(t *testing.T) {
 			}(t, i)
 		}
 		wg.Wait()
+	})
+}
+
+type CustomStorer struct{ Name string }
+
+func (i *CustomStorer) Type() string { return "CustomStorer" }
+func (i *CustomStorer) Indexes() map[string]badgerhold.Index {
+	return map[string]badgerhold.Index{
+		"Name": {
+			IndexFunc: func(_ string, value interface{}) ([]byte, error) {
+				return nil, errors.New("IndexFunc error")
+			},
+			Unique: false,
+		},
+	}
+}
+
+func TestInsertUpdateIndexError(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		data := &CustomStorer{
+			Name: "Test Name",
+		}
+		err := store.Insert("testKey", data)
+		if err == nil || err.Error() != "IndexFunc error" {
+			t.Fatalf("Insert didn't fail! Expected IndexFunc error got %s", err)
+		}
 	})
 }
