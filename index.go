@@ -104,7 +104,7 @@ func (s *Store) indexUpdate(typeName, indexName string, index Index, tx *badger.
 
 // indexKeyPrefix returns the prefix of the badger key where this index is stored
 func indexKeyPrefix(typeName, indexName string) []byte {
-	return []byte(indexPrefix + ":" + typeName + ":" + indexName)
+	return []byte(indexPrefix + ":" + typeName + ":" + indexName + ":")
 }
 
 // KeyList is a slice of unique, sorted keys([]byte) such as what an index points to

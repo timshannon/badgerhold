@@ -156,8 +156,8 @@ func (a *AggregateResult) Sum(field string) float64 {
 }
 
 // Count returns the number of records in the aggregate grouping
-func (a *AggregateResult) Count() int {
-	return len(a.reduction)
+func (a *AggregateResult) Count() uint64 {
+	return uint64(len(a.reduction))
 }
 
 // FindAggregate returns an aggregate grouping for the passed in query
