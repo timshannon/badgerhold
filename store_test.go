@@ -7,13 +7,12 @@ package badgerhold_test
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"reflect"
-	"runtime"
-
 	// "fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/timshannon/badgerhold/v3"
@@ -107,7 +106,10 @@ func TestGetUnknownType(t *testing.T) {
 // utilities
 
 func testWrap(t *testing.T, tests func(store *badgerhold.Store, t *testing.T)) {
-	opt := testOptions()
+	testWrapWithOpt(t, testOptions(), tests)
+}
+
+func testWrapWithOpt(t *testing.T, opt badgerhold.Options, tests func(store *badgerhold.Store, t *testing.T)) {
 	var err error
 	store, err := badgerhold.Open(opt)
 	if err != nil {
