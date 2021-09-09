@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/timshannon/badgerhold/v3"
 )
 
@@ -131,6 +132,29 @@ func TestIssue36(t *testing.T) {
 			ok(t, store.Find(&find4, badgerhold.Where(badgerhold.Key).Eq(data4[i].ID)))
 			assert(t, len(find4) == 1, "incorrect rows returned")
 			equals(t, find4[0], data4[i])
+		}
+	})
+}
+
+func TestTxGetBadgerError(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		key := "testKey"
+		data := &ItemTest{
+			Name:    "Test Name",
+			Created: time.Now(),
+		}
+		err := store.Insert(key, data)
+		if err != nil {
+			t.Fatalf("Error creating data for TxGet test: %s", err)
+		}
+
+		txn := store.Badger().NewTransaction(false)
+		txn.Discard()
+
+		result := &ItemTest{}
+		err = store.TxGet(txn, key, result)
+		if err != badger.ErrDiscardedTxn {
+			t.Fatalf("TxGet didn't fail! Expected %s got %s", badger.ErrDiscardedTxn, err)
 		}
 	})
 }

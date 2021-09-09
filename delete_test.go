@@ -5,6 +5,7 @@
 package badgerhold_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -166,5 +167,32 @@ func TestDeleteNotFound(t *testing.T) {
 				badgerhold.ErrNotFound, err)
 		}
 
+	})
+}
+
+func TestDeleteDecodeError(t *testing.T) {
+	errDecode := errors.New("decode error")
+	opt := testOptions()
+	opt.Decoder = func(data []byte, value interface{}) error {
+		return errDecode
+	}
+
+	testWrapWithOpt(t, opt, func(store *badgerhold.Store, t *testing.T) {
+		key := "testKey"
+		data := &ItemTest{
+			Name:    "Test Name",
+			Created: time.Now(),
+		}
+
+		err := store.Insert(key, data)
+		if err != nil {
+			t.Fatalf("Error inserting data for delete test: %s", err)
+		}
+
+		result := &ItemTest{}
+		err = store.Delete(key, result)
+		if err != errDecode {
+			t.Fatalf("Delete didn't fail! Expected %s got %s", errDecode, err)
+		}
 	})
 }
