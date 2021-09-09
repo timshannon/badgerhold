@@ -156,10 +156,8 @@ func (s *Store) newStorer(dataType interface{}) Storer {
 
 		if strings.Contains(string(storer.rType.Field(i).Tag), BadgerHoldIndexTag) {
 			indexName = storer.rType.Field(i).Tag.Get(BadgerHoldIndexTag)
-
-			if indexName != "" {
-				indexName = storer.rType.Field(i).Name
-			}
+			// indexName is stored cannonically as the field name NOT the name in the tag
+			indexName = storer.rType.Field(i).Name
 		} else if tag := storer.rType.Field(i).Tag.Get(badgerholdPrefixTag); tag != "" {
 			if tag == badgerholdPrefixIndexValue {
 				indexName = storer.rType.Field(i).Name

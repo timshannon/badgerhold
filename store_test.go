@@ -7,6 +7,7 @@ package badgerhold_test
 import (
 	"encoding/json"
 	"fmt"
+
 	// "fmt"
 	"io/ioutil"
 	"os"
@@ -101,6 +102,22 @@ func TestGetUnknownType(t *testing.T) {
 	if err != badgerhold.ErrNotFound {
 		t.Errorf("Expected error of type ErrNotFound, not %T", err)
 	}
+}
+
+func TestIssue71IndexByCustomName(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type Person struct {
+			Name     string
+			Division string `badgerholdIndex:"IdxDivision"`
+		}
+
+		record := Person{Name: "test", Division: "testDivision"}
+
+		ok(t, store.Insert(1, record))
+
+		var result []Person
+		ok(t, store.Find(&result, badgerhold.Where("Division").Eq(record.Division).Index("IdxDivision")))
+	})
 }
 
 // utilities
