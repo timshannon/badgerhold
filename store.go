@@ -229,3 +229,11 @@ func newElemType(datatype interface{}) interface{} {
 
 	return reflect.New(tp).Interface()
 }
+
+// makes sure that interface your working with is not a pointer
+func getElem(value interface{}) interface{} {
+	for reflect.TypeOf(value).Kind() == reflect.Ptr {
+		value = reflect.ValueOf(value).Elem().Interface()
+	}
+	return value
+}
