@@ -517,9 +517,9 @@ func (c *Criterion) test(s *Store, testValue interface{}, encoded bool, keyType 
 	case isnil:
 		return reflect.ValueOf(recordValue).IsNil(), nil
 	case sw:
-		return strings.HasPrefix(fmt.Sprintf("%s", recordValue), fmt.Sprintf("%s", c.value)), nil
+		return strings.HasPrefix(fmt.Sprintf("%s", getElem(recordValue)), fmt.Sprintf("%s", c.value)), nil
 	case ew:
-		return strings.HasSuffix(fmt.Sprintf("%s", recordValue), fmt.Sprintf("%s", c.value)), nil
+		return strings.HasSuffix(fmt.Sprintf("%s", getElem(recordValue)), fmt.Sprintf("%s", c.value)), nil
 	case contains, any, all:
 		slc := reflect.ValueOf(recordValue)
 		kind := slc.Kind()

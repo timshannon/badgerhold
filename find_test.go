@@ -1222,3 +1222,24 @@ func TestCount(t *testing.T) {
 		}
 	})
 }
+
+func TestIssue74HasPrefixOnKeys(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		type Item struct {
+			ID       string
+			Category string `badgerholdIndex:"Category"`
+			Created  time.Time
+		}
+
+		id := "test_1_test"
+
+		ok(t, store.Insert(id, &Item{
+			ID: id,
+		}))
+
+		result := &Item{}
+
+		ok(t, store.FindOne(result, badgerhold.Where(badgerhold.Key).HasPrefix("test")))
+		ok(t, store.FindOne(result, badgerhold.Where(badgerhold.Key).HasSuffix("test")))
+	})
+}
