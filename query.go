@@ -940,6 +940,10 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 
 	val := reflect.New(tp)
 
+	if isFindByIndexQuery(query) {
+		return s.FindByIndexQuery(tx, resultVal, query)
+	}
+
 	err := s.runQuery(tx, val.Interface(), query, nil, query.skip,
 		func(r *record) error {
 			var rowValue reflect.Value
@@ -972,6 +976,70 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 
 	resultVal.Elem().Set(sliceVal.Slice(0, sliceVal.Len()))
 
+	return nil
+}
+
+func isFindByIndexQuery(query *Query) bool {
+	if query.index == "" || len(query.fieldCriteria) != 1 || len(query.fieldCriteria[query.index]) != 1 {
+		return false
+	}
+
+	operator := query.fieldCriteria[query.index][0].operator
+	//TODO-ind: support in operator
+	return operator == eq
+}
+
+//TODO-ind: make private, public for writing test for that function
+func (s *Store) FindByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, query *Query) error {
+	criteria := query.fieldCriteria[query.index][0]
+	indexKeyValue, err := s.encode(criteria.value)
+	if err != nil {
+		return err
+	}
+
+	sliceType := resultSlice.Elem().Type()
+	sliceElement := sliceType.Elem()
+	indexKey := newIndexKey(sliceElement.Name(), query.index, indexKeyValue)
+
+	item, err := tx.Get(indexKey)
+	if err == badger.ErrKeyNotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	keyList := new(KeyList)
+	err = item.Value(func(val []byte) error {
+		return s.decode(val, keyList)
+	})
+	if err != nil {
+		return err
+	}
+
+	slice := reflect.MakeSlice(sliceType, 0, len(*keyList))
+	for i := range *keyList {
+		item, err = tx.Get((*keyList)[i])
+		if err == badger.ErrKeyNotFound {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+
+		//TODO-ind: handle data with key tag
+		newElement := reflect.New(sliceElement)
+		err = item.Value(func(val []byte) error {
+			return s.decode(val, newElement.Interface())
+		})
+		if err != nil {
+			return err
+		}
+
+		slice = reflect.Append(slice, newElement.Elem())
+	}
+
+	resultSlice.Elem().Set(slice)
 	return nil
 }
 
