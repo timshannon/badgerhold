@@ -707,7 +707,10 @@ func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, ret
 	}
 
 	query.dataType = reflect.TypeOf(tp)
-	query.validateIndex()
+	err := query.validateIndex()
+	if err != nil {
+		return err
+	}
 
 	if len(query.sort) > 0 {
 		return s.runQuerySort(tx, dataType, query, action)
@@ -926,6 +929,10 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 		panic("result argument must be a slice address")
 	}
 
+	if isFindByIndexQuery(query) {
+		return s.findByIndexQuery(tx, resultVal, query)
+	}
+
 	sliceVal := resultVal.Elem()
 
 	elType := sliceVal.Type().Elem()
@@ -973,6 +980,15 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 	resultVal.Elem().Set(sliceVal.Slice(0, sliceVal.Len()))
 
 	return nil
+}
+
+func isFindByIndexQuery(query *Query) bool {
+	if query.index == "" || len(query.fieldCriteria) != 1 || len(query.fieldCriteria[query.index]) != 1 {
+		return false
+	}
+
+	operator := query.fieldCriteria[query.index][0].operator
+	return operator == eq || operator == in
 }
 
 func (s *Store) deleteQuery(tx *badger.Txn, dataType interface{}, query *Query) error {
@@ -1260,4 +1276,97 @@ func (s *Store) countQuery(tx *badger.Txn, dataType interface{}, query *Query) (
 	}
 
 	return count, nil
+}
+
+func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, query *Query) (err error) {
+	criteria := query.fieldCriteria[query.index][0]
+	sliceType := resultSlice.Elem().Type()
+	elementType := dereference(sliceType.Elem())
+
+	var keyList KeyList
+	if criteria.operator == in {
+		keyList, err = s.fetchIndexValues(tx, query, elementType.Name(), criteria.values...)
+	} else {
+		keyList, err = s.fetchIndexValues(tx, query, elementType.Name(), criteria.value)
+	}
+	if err != nil {
+		return err
+	}
+
+	keyField, hasKeyField := getKeyField(elementType)
+
+	slice := reflect.MakeSlice(sliceType, 0, len(keyList))
+	for i := range keyList {
+		item, err := tx.Get(keyList[i])
+		if err == badger.ErrKeyNotFound {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+
+		newElement := reflect.New(elementType)
+		err = item.Value(func(val []byte) error {
+			return s.decode(val, newElement.Interface())
+		})
+		if err != nil {
+			return err
+		}
+		if hasKeyField {
+			err = s.setKeyField(keyList[i], newElement, keyField, elementType.Name())
+			if err != nil {
+				return err
+			}
+		}
+
+		if elementType.Kind() != reflect.Ptr {
+			newElement = newElement.Elem()
+		}
+		slice = reflect.Append(slice, newElement)
+	}
+
+	resultSlice.Elem().Set(slice)
+	return nil
+}
+
+func (s *Store) fetchIndexValues(tx *badger.Txn, query *Query, typeName string, indexKeys ...interface{}) (KeyList, error) {
+	keyList := KeyList{}
+	for i := range indexKeys {
+		indexKeyValue, err := s.encode(indexKeys[i])
+		if err != nil {
+			return nil, err
+		}
+
+		indexKey := newIndexKey(typeName, query.index, indexKeyValue)
+
+		item, err := tx.Get(indexKey)
+		if err == badger.ErrKeyNotFound {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		indexValue := KeyList{}
+		err = item.Value(func(val []byte) error {
+			return s.decode(val, &indexValue)
+		})
+		if err != nil {
+			return nil, err
+		}
+		keyList = append(keyList, indexValue...)
+	}
+	return keyList, nil
+}
+
+func (s *Store) setKeyField(data []byte, key reflect.Value, keyField reflect.StructField, typeName string) error {
+	return s.decodeKey(data, key.Elem().FieldByName(keyField.Name).Addr().Interface(), typeName)
+}
+
+func dereference(value reflect.Type) reflect.Type {
+	result := value
+	for result.Kind() == reflect.Ptr {
+		result = result.Elem()
+	}
+	return result
 }

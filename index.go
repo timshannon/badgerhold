@@ -107,6 +107,11 @@ func indexKeyPrefix(typeName, indexName string) []byte {
 	return []byte(indexPrefix + ":" + typeName + ":" + indexName + ":")
 }
 
+// newIndexKey returns the badger key where this index is stored
+func newIndexKey(typeName, indexName string, value []byte) []byte {
+	return append(indexKeyPrefix(typeName, indexName), value...)
+}
+
 // KeyList is a slice of unique, sorted keys([]byte) such as what an index points to
 type KeyList [][]byte
 
