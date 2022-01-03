@@ -992,60 +992,6 @@ func isFindByIndexQuery(query *Query) bool {
 	return operator == eq
 }
 
-//TODO-ind: make private, public for writing test for that function
-func (s *Store) FindByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, query *Query) error {
-	criteria := query.fieldCriteria[query.index][0]
-	indexKeyValue, err := s.encode(criteria.value)
-	if err != nil {
-		return err
-	}
-
-	sliceType := resultSlice.Elem().Type()
-	sliceElement := sliceType.Elem()
-	indexKey := newIndexKey(sliceElement.Name(), query.index, indexKeyValue)
-
-	item, err := tx.Get(indexKey)
-	if err == badger.ErrKeyNotFound {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	keyList := new(KeyList)
-	err = item.Value(func(val []byte) error {
-		return s.decode(val, keyList)
-	})
-	if err != nil {
-		return err
-	}
-
-	slice := reflect.MakeSlice(sliceType, 0, len(*keyList))
-	for i := range *keyList {
-		item, err = tx.Get((*keyList)[i])
-		if err == badger.ErrKeyNotFound {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-
-		//TODO-ind: handle data with key tag
-		newElement := reflect.New(sliceElement)
-		err = item.Value(func(val []byte) error {
-			return s.decode(val, newElement.Interface())
-		})
-		if err != nil {
-			return err
-		}
-
-		slice = reflect.Append(slice, newElement.Elem())
-	}
-
-	resultSlice.Elem().Set(slice)
-	return nil
-}
-
 func (s *Store) deleteQuery(tx *badger.Txn, dataType interface{}, query *Query) error {
 	if query == nil {
 		query = &Query{}
@@ -1331,4 +1277,80 @@ func (s *Store) countQuery(tx *badger.Txn, dataType interface{}, query *Query) (
 	}
 
 	return count, nil
+}
+
+//TODO-ind: make private, public for writing test for that function
+func (s *Store) FindByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, query *Query) error {
+	criteria := query.fieldCriteria[query.index][0]
+	indexKeyValue, err := s.encode(criteria.value)
+	if err != nil {
+		return err
+	}
+
+	sliceType := resultSlice.Elem().Type()
+	elementType := dereference(sliceType.Elem())
+	indexKey := newIndexKey(elementType.Name(), query.index, indexKeyValue)
+
+	item, err := tx.Get(indexKey)
+	if err == badger.ErrKeyNotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	keyList := KeyList{}
+	err = item.Value(func(val []byte) error {
+		return s.decode(val, &keyList)
+	})
+	if err != nil {
+		return err
+	}
+
+	keyField, hasKeyField := getKeyField(elementType)
+
+	slice := reflect.MakeSlice(sliceType, 0, len(keyList))
+	for i := range keyList {
+		item, err = tx.Get(keyList[i])
+		if err == badger.ErrKeyNotFound {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+
+		newElement := reflect.New(elementType)
+		err = item.Value(func(val []byte) error {
+			return s.decode(val, newElement.Interface())
+		})
+		if err != nil {
+			return err
+		}
+		if hasKeyField {
+			err = s.setKeyField(keyList[i], newElement, keyField, elementType.Name())
+			if err != nil {
+				return err
+			}
+		}
+
+		if elementType.Kind() != reflect.Ptr {
+			newElement = newElement.Elem()
+		}
+		slice = reflect.Append(slice, newElement)
+	}
+
+	resultSlice.Elem().Set(slice)
+	return nil
+}
+
+func (s *Store) setKeyField(data []byte, key reflect.Value, keyField reflect.StructField, typeName string) error {
+	return s.decodeKey(data, key.Elem().FieldByName(keyField.Name).Addr().Interface(), typeName)
+}
+
+func dereference(value reflect.Type) reflect.Type {
+	result := value
+	for result.Kind() == reflect.Ptr {
+		result = result.Elem()
+	}
+	return result
 }

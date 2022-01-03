@@ -207,7 +207,6 @@ func typePrefix(typeName string) []byte {
 }
 
 func getKeyField(tp reflect.Type) (reflect.StructField, bool) {
-
 	for i := 0; i < tp.NumField(); i++ {
 		if strings.HasPrefix(string(tp.Field(i).Tag), BadgerholdKeyTag) {
 			return tp.Field(i), true
