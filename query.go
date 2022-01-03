@@ -929,6 +929,10 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 		panic("result argument must be a slice address")
 	}
 
+	if isFindByIndexQuery(query) {
+		return s.findByIndexQuery(tx, resultVal, query)
+	}
+
 	sliceVal := resultVal.Elem()
 
 	elType := sliceVal.Type().Elem()
@@ -942,10 +946,6 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 	keyField, hasKeyField := getKeyField(tp)
 
 	val := reflect.New(tp)
-
-	if isFindByIndexQuery(query) {
-		return s.FindByIndexQuery(tx, resultVal, query)
-	}
 
 	err := s.runQuery(tx, val.Interface(), query, nil, query.skip,
 		func(r *record) error {
@@ -988,8 +988,7 @@ func isFindByIndexQuery(query *Query) bool {
 	}
 
 	operator := query.fieldCriteria[query.index][0].operator
-	//TODO-ind: support in operator
-	return operator == eq
+	return operator == eq || operator == in
 }
 
 func (s *Store) deleteQuery(tx *badger.Txn, dataType interface{}, query *Query) error {
@@ -1279,30 +1278,17 @@ func (s *Store) countQuery(tx *badger.Txn, dataType interface{}, query *Query) (
 	return count, nil
 }
 
-//TODO-ind: make private, public for writing test for that function
-func (s *Store) FindByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, query *Query) error {
+func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, query *Query) (err error) {
 	criteria := query.fieldCriteria[query.index][0]
-	indexKeyValue, err := s.encode(criteria.value)
-	if err != nil {
-		return err
-	}
-
 	sliceType := resultSlice.Elem().Type()
 	elementType := dereference(sliceType.Elem())
-	indexKey := newIndexKey(elementType.Name(), query.index, indexKeyValue)
 
-	item, err := tx.Get(indexKey)
-	if err == badger.ErrKeyNotFound {
-		return nil
+	var keyList KeyList
+	if criteria.operator == in {
+		keyList, err = s.fetchIndexValues(tx, query, elementType.Name(), criteria.values...)
+	} else {
+		keyList, err = s.fetchIndexValues(tx, query, elementType.Name(), criteria.value)
 	}
-	if err != nil {
-		return err
-	}
-
-	keyList := KeyList{}
-	err = item.Value(func(val []byte) error {
-		return s.decode(val, &keyList)
-	})
 	if err != nil {
 		return err
 	}
@@ -1311,7 +1297,7 @@ func (s *Store) FindByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 
 	slice := reflect.MakeSlice(sliceType, 0, len(keyList))
 	for i := range keyList {
-		item, err = tx.Get(keyList[i])
+		item, err := tx.Get(keyList[i])
 		if err == badger.ErrKeyNotFound {
 			continue
 		}
@@ -1341,6 +1327,36 @@ func (s *Store) FindByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 
 	resultSlice.Elem().Set(slice)
 	return nil
+}
+
+func (s *Store) fetchIndexValues(tx *badger.Txn, query *Query, typeName string, indexKeys ...interface{}) (KeyList, error) {
+	keyList := KeyList{}
+	for i := range indexKeys {
+		indexKeyValue, err := s.encode(indexKeys[i])
+		if err != nil {
+			return nil, err
+		}
+
+		indexKey := newIndexKey(typeName, query.index, indexKeyValue)
+
+		item, err := tx.Get(indexKey)
+		if err == badger.ErrKeyNotFound {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		indexValue := KeyList{}
+		err = item.Value(func(val []byte) error {
+			return s.decode(val, &indexValue)
+		})
+		if err != nil {
+			return nil, err
+		}
+		keyList = append(keyList, indexValue...)
+	}
+	return keyList, nil
 }
 
 func (s *Store) setKeyField(data []byte, key reflect.Value, keyField reflect.StructField, typeName string) error {
