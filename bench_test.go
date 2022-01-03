@@ -30,7 +30,7 @@ var benchItem = BenchData{
 	Category: "test category",
 }
 
-var benchItemIndexed = BenchData{
+var benchItemIndexed = BenchDataIndexed{
 	ID:       30,
 	Category: "test category",
 }
@@ -218,7 +218,7 @@ func BenchmarkFindIndexed(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			var result []BenchDataIndexed
 
-			err := store.Find(&result, badgerhold.Where("Category").Eq("findCategory"))
+			err := store.Find(&result, badgerhold.Where("Category").Eq("findCategory").Index("Category"))
 			if err != nil {
 				b.Fatalf("Error finding data in store: %s", err)
 			}
