@@ -707,7 +707,10 @@ func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, ret
 	}
 
 	query.dataType = reflect.TypeOf(tp)
-	query.validateIndex()
+	err := query.validateIndex()
+	if err != nil {
+		return err
+	}
 
 	if len(query.sort) > 0 {
 		return s.runQuerySort(tx, dataType, query, action)
