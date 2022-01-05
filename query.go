@@ -249,12 +249,20 @@ func (q *Query) Index(indexName string) *Query {
 	return q
 }
 
-func (q *Query) validateIndex() error {
+func (q *Query) validateIndex(data interface{}) error {
 	if q.index == "" {
 		return nil
 	}
 	if q.dataType == nil {
 		panic("Can't check for a valid index before query datatype is set")
+	}
+
+	if storer, ok := data.(Storer); ok {
+		if _, ok = storer.Indexes()[q.index]; ok {
+			return nil
+		} else {
+			return fmt.Errorf("The index %s does not exist", q.index)
+		}
 	}
 
 	if _, ok := q.dataType.FieldByName(q.index); ok {
@@ -707,7 +715,7 @@ func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, ret
 	}
 
 	query.dataType = reflect.TypeOf(tp)
-	err := query.validateIndex()
+	err := query.validateIndex(dataType)
 	if err != nil {
 		return err
 	}
@@ -1296,7 +1304,9 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 	sliceType := resultSlice.Elem().Type()
 	query.dataType = dereference(sliceType.Elem())
 
-	err = query.validateIndex()
+	data := reflect.New(query.dataType).Interface()
+	storer := s.newStorer(data)
+	err = query.validateIndex(data)
 	if err != nil {
 		return err
 	}
@@ -1307,9 +1317,9 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 
 	var keyList KeyList
 	if criteria.operator == in {
-		keyList, err = s.fetchIndexValues(tx, query, query.dataType.Name(), criteria.values...)
+		keyList, err = s.fetchIndexValues(tx, query, storer.Type(), criteria.values...)
 	} else {
-		keyList, err = s.fetchIndexValues(tx, query, query.dataType.Name(), criteria.value)
+		keyList, err = s.fetchIndexValues(tx, query, storer.Type(), criteria.value)
 	}
 	if err != nil {
 		return err
@@ -1335,7 +1345,7 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 			return err
 		}
 		if hasKeyField {
-			err = s.setKeyField(keyList[i], newElement, keyField, query.dataType.Name())
+			err = s.setKeyField(keyList[i], newElement, keyField, storer.Type())
 			if err != nil {
 				return err
 			}
