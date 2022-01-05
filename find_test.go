@@ -1243,3 +1243,22 @@ func TestIssue74HasPrefixOnKeys(t *testing.T) {
 		ok(t, store.FindOne(result, badgerhold.Where(badgerhold.Key).HasSuffix("test")))
 	})
 }
+
+func TestFindIndexedWithSort(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		insertTestData(t, store)
+		results := make([]ItemTest, 1)
+		ok(t, store.Find(
+			&results,
+			badgerhold.Where("Category").Eq("vehicle").Index("Category").
+				SortBy("Name").Skip(1).Limit(3),
+		))
+
+		expectedIDs := []int{11, 1, 3}
+		equals(t, len(expectedIDs), len(results))
+
+		for i := range results {
+			assert(t, testData[expectedIDs[i]].equal(&results[i]), "incorrect rows returned")
+		}
+	})
+}
