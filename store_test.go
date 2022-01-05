@@ -105,17 +105,17 @@ func TestGetUnknownType(t *testing.T) {
 	}
 }
 
-type Issue115 struct{ Name string }
+type ItemWithStorer struct{ Name string }
 
-func (i *Issue115) Type() string { return "Item" }
-func (i *Issue115) Indexes() map[string]badgerhold.Index {
+func (i *ItemWithStorer) Type() string { return "Item" }
+func (i *ItemWithStorer) Indexes() map[string]badgerhold.Index {
 	return map[string]badgerhold.Index{
 		"Name": {
 			IndexFunc: func(_ string, value interface{}) ([]byte, error) {
 				// If the upsert wants to delete an existing value first,
 				// value could be a **Item instead of *Item
 				// panic: interface conversion: interface {} is **Item, not *Item
-				v := value.(*Issue115).Name
+				v := value.(*ItemWithStorer).Name
 				return badgerhold.DefaultEncode(v)
 			},
 			Unique: false,
@@ -125,7 +125,7 @@ func (i *Issue115) Indexes() map[string]badgerhold.Index {
 
 func TestIssue115(t *testing.T) {
 	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
-		item := &Issue115{"Name"}
+		item := &ItemWithStorer{"Name"}
 		for i := 0; i < 2; i++ {
 			err := store.Upsert("key", item)
 			if err != nil {

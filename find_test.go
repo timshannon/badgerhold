@@ -1262,3 +1262,18 @@ func TestFindIndexedWithSort(t *testing.T) {
 		}
 	})
 }
+
+func TestFindWithStorerImplementation(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		customStorerItem := &ItemWithStorer{Name: "pizza"}
+		ok(t, store.Insert(1, customStorerItem))
+
+		results := make([]ItemWithStorer, 1)
+		ok(t, store.Find(
+			&results,
+			badgerhold.Where("Name").Eq("pizza").Index("Name"),
+		))
+
+		equals(t, *customStorerItem, results[0])
+	})
+}
