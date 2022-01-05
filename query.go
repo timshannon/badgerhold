@@ -810,7 +810,104 @@ func (s *Store) runQuery(tx *badger.Txn, dataType interface{}, query *Query, ret
 
 // runQuerySort runs the query without sort, skip, or limit, then applies them to the entire result set
 func (s *Store) runQuerySort(tx *badger.Txn, dataType interface{}, query *Query, action func(r *record) error) error {
-	// Validate sort fields
+	err := validateSortFields(query)
+	if err != nil {
+		return err
+	}
+
+	// Run query without sort, skip or limit
+	// apply sort, skip and limit to entire dataset
+	qCopy := *query
+	qCopy.sort = nil
+	qCopy.limit = 0
+	qCopy.skip = 0
+
+	var records []*record
+	err = s.runQuery(tx, dataType, &qCopy, nil, 0,
+		func(r *record) error {
+			records = append(records, r)
+
+			return nil
+		})
+
+	if err != nil {
+		return err
+	}
+
+	sort.Slice(records, func(i, j int) bool {
+		return sortFunction(query, records[i].value, records[j].value)
+	})
+
+	startIndex, endIndex := getSkipAndLimitRange(query, len(records))
+	records = records[startIndex:endIndex]
+
+	for i := range records {
+		err = action(records[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getSkipAndLimitRange(query *Query, recordsLen int) (startIndex, endIndex int) {
+	if query.skip > recordsLen {
+		return 0, 0
+	}
+	startIndex = query.skip
+	endIndex = recordsLen
+	limitIndex := query.limit + startIndex
+
+	if query.limit > 0 && limitIndex <= recordsLen {
+		endIndex = limitIndex
+	}
+	return startIndex, endIndex
+}
+
+func sortFunction(query *Query, first, second reflect.Value) bool {
+	for _, field := range query.sort {
+		val, err := fieldValue(reflect.Indirect(first), field)
+		if err != nil {
+			panic(err.Error()) // shouldn't happen due to field check above
+		}
+		value := val.Interface()
+
+		val, err = fieldValue(reflect.Indirect(second), field)
+		if err != nil {
+			panic(err.Error()) // shouldn't happen due to field check above
+		}
+
+		other := val.Interface()
+
+		if query.reverse {
+			value, other = other, value
+		}
+
+		cmp, cerr := compare(value, other)
+		if cerr != nil {
+			// if for some reason there is an error on compare, fallback to a lexicographic compare
+			valS := fmt.Sprintf("%s", value)
+			otherS := fmt.Sprintf("%s", other)
+			if valS < otherS {
+				return true
+			} else if valS == otherS {
+				continue
+			}
+			return false
+		}
+
+		if cmp == -1 {
+			return true
+		} else if cmp == 0 {
+			continue
+		}
+		return false
+	}
+	return false
+}
+
+func validateSortFields(query *Query) error {
 	for _, field := range query.sort {
 		fields := strings.Split(field, ".")
 
@@ -830,91 +927,7 @@ func (s *Store) runQuerySort(tx *badger.Txn, dataType interface{}, query *Query,
 			current = structField.Type
 		}
 	}
-
-	// Run query without sort, skip or limit
-	// apply sort, skip and limit to entire dataset
-	qCopy := *query
-	qCopy.sort = nil
-	qCopy.limit = 0
-	qCopy.skip = 0
-
-	var records []*record
-	err := s.runQuery(tx, dataType, &qCopy, nil, 0,
-		func(r *record) error {
-			records = append(records, r)
-
-			return nil
-		})
-
-	if err != nil {
-		return err
-	}
-
-	sort.Slice(records, func(i, j int) bool {
-		for _, field := range query.sort {
-			val, err := fieldValue(records[i].value.Elem(), field)
-			if err != nil {
-				panic(err.Error()) // shouldn't happen due to field check above
-			}
-			value := val.Interface()
-
-			val, err = fieldValue(records[j].value.Elem(), field)
-			if err != nil {
-				panic(err.Error()) // shouldn't happen due to field check above
-			}
-
-			other := val.Interface()
-
-			if query.reverse {
-				value, other = other, value
-			}
-
-			cmp, cerr := compare(value, other)
-			if cerr != nil {
-				// if for some reason there is an error on compare, fallback to a lexicographic compare
-				valS := fmt.Sprintf("%s", value)
-				otherS := fmt.Sprintf("%s", other)
-				if valS < otherS {
-					return true
-				} else if valS == otherS {
-					continue
-				}
-				return false
-			}
-
-			if cmp == -1 {
-				return true
-			} else if cmp == 0 {
-				continue
-			}
-			return false
-		}
-		return false
-	})
-
-	// apply skip and limit
-	limit := query.limit
-	skip := query.skip
-
-	if skip > len(records) {
-		records = records[0:0]
-	} else {
-		records = records[skip:]
-	}
-
-	if limit > 0 && limit <= len(records) {
-		records = records[:limit]
-	}
-
-	for i := range records {
-		err = action(records[i])
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
-
 }
 
 func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) error {
@@ -983,7 +996,7 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 }
 
 func isFindByIndexQuery(query *Query) bool {
-	if query.index == "" || len(query.fieldCriteria) != 1 || len(query.fieldCriteria[query.index]) != 1 {
+	if query.index == "" || len(query.fieldCriteria) != 1 || len(query.fieldCriteria[query.index]) != 1 || len(query.ors) > 0 {
 		return false
 	}
 
@@ -1281,19 +1294,28 @@ func (s *Store) countQuery(tx *badger.Txn, dataType interface{}, query *Query) (
 func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, query *Query) (err error) {
 	criteria := query.fieldCriteria[query.index][0]
 	sliceType := resultSlice.Elem().Type()
-	elementType := dereference(sliceType.Elem())
+	query.dataType = dereference(sliceType.Elem())
+
+	err = query.validateIndex()
+	if err != nil {
+		return err
+	}
+	err = validateSortFields(query)
+	if err != nil {
+		return err
+	}
 
 	var keyList KeyList
 	if criteria.operator == in {
-		keyList, err = s.fetchIndexValues(tx, query, elementType.Name(), criteria.values...)
+		keyList, err = s.fetchIndexValues(tx, query, query.dataType.Name(), criteria.values...)
 	} else {
-		keyList, err = s.fetchIndexValues(tx, query, elementType.Name(), criteria.value)
+		keyList, err = s.fetchIndexValues(tx, query, query.dataType.Name(), criteria.value)
 	}
 	if err != nil {
 		return err
 	}
 
-	keyField, hasKeyField := getKeyField(elementType)
+	keyField, hasKeyField := getKeyField(query.dataType)
 
 	slice := reflect.MakeSlice(sliceType, 0, len(keyList))
 	for i := range keyList {
@@ -1305,7 +1327,7 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 			return err
 		}
 
-		newElement := reflect.New(elementType)
+		newElement := reflect.New(query.dataType)
 		err = item.Value(func(val []byte) error {
 			return s.decode(val, newElement.Interface())
 		})
@@ -1313,17 +1335,26 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 			return err
 		}
 		if hasKeyField {
-			err = s.setKeyField(keyList[i], newElement, keyField, elementType.Name())
+			err = s.setKeyField(keyList[i], newElement, keyField, query.dataType.Name())
 			if err != nil {
 				return err
 			}
 		}
 
-		if elementType.Kind() != reflect.Ptr {
+		if query.dataType.Kind() != reflect.Ptr {
 			newElement = newElement.Elem()
 		}
 		slice = reflect.Append(slice, newElement)
 	}
+
+	if len(query.sort) > 0 {
+		sort.Slice(slice.Interface(), func(i, j int) bool {
+			return sortFunction(query, slice.Index(i), slice.Index(j))
+		})
+	}
+
+	startIndex, endIndex := getSkipAndLimitRange(query, slice.Len())
+	slice = slice.Slice(startIndex, endIndex)
 
 	resultSlice.Elem().Set(slice)
 	return nil
