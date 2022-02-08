@@ -1004,7 +1004,7 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 }
 
 func isFindByIndexQuery(query *Query) bool {
-	if query.index == "" || len(query.fieldCriteria) != 1 || len(query.fieldCriteria[query.index]) != 1 || len(query.ors) > 0 {
+	if query.index == "" || len(query.fieldCriteria) == 0 || len(query.fieldCriteria[query.index]) != 1 || len(query.ors) > 0 {
 		return false
 	}
 
@@ -1349,6 +1349,14 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 			if err != nil {
 				return err
 			}
+		}
+
+		ok, err := query.matchesAllFields(s, keyList[i], newElement, newElement.Interface())
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue
 		}
 
 		if query.dataType.Kind() != reflect.Ptr {
