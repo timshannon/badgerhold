@@ -1331,7 +1331,7 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 	for i := range keyList {
 		item, err := tx.Get(keyList[i])
 		if err == badger.ErrKeyNotFound {
-			continue
+			panic("inconsistency between keys stored in index and in Badger directly")
 		}
 		if err != nil {
 			return err
