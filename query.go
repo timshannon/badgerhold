@@ -1359,7 +1359,7 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 			continue
 		}
 
-		if query.dataType.Kind() != reflect.Ptr {
+		if sliceType.Elem().Kind() != reflect.Ptr {
 			newElement = newElement.Elem()
 		}
 		slice = reflect.Append(slice, newElement)
