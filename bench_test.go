@@ -269,3 +269,44 @@ func BenchmarkFindIndexedWithManyIndexValues(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkFindIndexedWithAdditionalCriteria(b *testing.B) {
+	benchWrap(b, nil, func(store *badgerhold.Store, b *testing.B) {
+		for i := 0; i < 3; i++ {
+			for k := 0; k < 100; k++ {
+				itemID := int(idVal) + 1
+				item := BenchDataIndexed{
+					ID:       itemID,
+					Category: strconv.Itoa(itemID),
+				}
+				err := store.Insert(id(), item)
+				if err != nil {
+					b.Fatalf("Error inserting benchmarking data: %s", err)
+				}
+			}
+			err := store.Insert(id(), &BenchDataIndexed{
+				ID:       30,
+				Category: "findCategory",
+			})
+			if err != nil {
+				b.Fatalf("Error inserting benchmarking data: %s", err)
+			}
+
+		}
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			var result []BenchDataIndexed
+
+			err := store.Find(
+				&result,
+				badgerhold.Where("Category").In("findCategory").Index("Category").
+					And("ID").Eq(30),
+			)
+			if err != nil {
+				b.Fatalf("Error finding data in store: %s", err)
+			}
+		}
+	})
+}
