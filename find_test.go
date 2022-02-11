@@ -1247,7 +1247,7 @@ func TestIssue74HasPrefixOnKeys(t *testing.T) {
 func TestFindIndexedWithSort(t *testing.T) {
 	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
 		insertTestData(t, store)
-		results := make([]ItemTest, 1)
+		results := make([]ItemTest, 0, 3)
 		ok(t, store.Find(
 			&results,
 			badgerhold.Where("Category").Eq("vehicle").Index("Category").
@@ -1259,6 +1259,24 @@ func TestFindIndexedWithSort(t *testing.T) {
 
 		for i := range results {
 			assert(t, testData[expectedIDs[i]].equal(&results[i]), "incorrect rows returned")
+		}
+	})
+}
+
+func TestFindIndexedWithResultSliceOfPointers(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		insertTestData(t, store)
+		results := make([]*ItemTest, 0, 3)
+		ok(t, store.Find(
+			&results,
+			badgerhold.Where("Category").Eq("vehicle").Index("Category"),
+		))
+
+		expectedIDs := []int{0, 1, 3, 6, 11}
+		equals(t, len(expectedIDs), len(results))
+
+		for i := range results {
+			assert(t, testData[expectedIDs[i]].equal(results[i]), "incorrect rows returned")
 		}
 	})
 }

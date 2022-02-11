@@ -1004,7 +1004,7 @@ func (s *Store) findQuery(tx *badger.Txn, result interface{}, query *Query) erro
 }
 
 func isFindByIndexQuery(query *Query) bool {
-	if query.index == "" || len(query.fieldCriteria) != 1 || len(query.fieldCriteria[query.index]) != 1 || len(query.ors) > 0 {
+	if query.index == "" || len(query.fieldCriteria) == 0 || len(query.fieldCriteria[query.index]) != 1 || len(query.ors) > 0 {
 		return false
 	}
 
@@ -1331,7 +1331,7 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 	for i := range keyList {
 		item, err := tx.Get(keyList[i])
 		if err == badger.ErrKeyNotFound {
-			continue
+			panic("inconsistency between keys stored in index and in Badger directly")
 		}
 		if err != nil {
 			return err
@@ -1351,7 +1351,15 @@ func (s *Store) findByIndexQuery(tx *badger.Txn, resultSlice reflect.Value, quer
 			}
 		}
 
-		if query.dataType.Kind() != reflect.Ptr {
+		ok, err := query.matchesAllFields(s, keyList[i], newElement, newElement.Interface())
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue
+		}
+
+		if sliceType.Elem().Kind() != reflect.Ptr {
 			newElement = newElement.Elem()
 		}
 		slice = reflect.Append(slice, newElement)
