@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	// BadgerHoldIndexTag is the struct tag used to define an a field as indexable for a badgerhold
+	// BadgerHoldIndexTag is the struct tag used to define a field as indexable for a badgerhold
 	BadgerHoldIndexTag = "badgerholdIndex"
 
-	// BadgerholdKeyTag is the struct tag used to define an a field as a key for use in a Find query
+	// BadgerholdKeyTag is the struct tag used to define a field as a key for use in a Find query
 	BadgerholdKeyTag = "badgerholdKey"
 
 	// badgerholdPrefixTag is the prefix for an alternate (more standard) version of a struct tag
@@ -162,7 +162,7 @@ func (s *Store) newStorer(dataType interface{}) Storer {
 			}
 		} else if tag := storer.rType.Field(i).Tag.Get(badgerholdPrefixTag); tag != "" {
 			if tag == badgerholdPrefixIndexValue {
-				// indexName is stored cannonically as the field name NOT the name in the tag
+				// indexName is stored canonically as the field name NOT the name in the tag
 				indexName = storer.rType.Field(i).Name
 			} else if tag == badgerholdPrefixUniqueValue {
 				indexName = storer.rType.Field(i).Name
