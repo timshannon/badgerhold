@@ -8,7 +8,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-// Delete deletes a record from the bolt-hold, datatype just needs to be an example of the type stored so that
+// Delete deletes a record from the badgerhold, datatype just needs to be an example of the type stored so that
 // the proper bucket and indexes are updated
 func (s *Store) Delete(key, dataType interface{}) error {
 	return s.Badger().Update(func(tx *badger.Txn) error {
