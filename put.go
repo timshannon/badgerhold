@@ -27,9 +27,9 @@ func NextSequence() interface{} {
 	return sequence{}
 }
 
-// Insert inserts the passed in data into the the badgerhold
+// Insert inserts the passed in data into the badgerhold
 //
-// If the the key already exists in the badgerhold, then an ErrKeyExists is returned
+// If the key already exists in the badgerhold, then an ErrKeyExists is returned
 // If the data struct has a field tagged as `badgerholdKey` and it is the same type
 // as the Insert key, AND the data struct is passed by reference, AND the key field
 // is currently set to the zero-value for that type, then that field will be set to
@@ -47,7 +47,7 @@ func (s *Store) Insert(key, data interface{}) error {
 	return err
 }
 
-// TxInsert is the same as Insert except it allows you specify your own transaction
+// TxInsert is the same as Insert except it allows you to specify your own transaction
 func (s *Store) TxInsert(tx *badger.Txn, key, data interface{}) error {
 	storer := s.newStorer(data)
 	var err error

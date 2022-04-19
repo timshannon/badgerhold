@@ -60,7 +60,7 @@ type Query struct {
 	reverse bool
 }
 
-// Slice turns a slice of any time into []interface{} by copying the slice values so it can be easily passed
+// Slice turns a slice of any type into []interface{} by copying the slice values so it can be easily passed
 // into queries that accept variadic parameters.
 // Will panic if value is not a slice
 func Slice(value interface{}) []interface{} {
@@ -133,7 +133,7 @@ func Where(field string) *Criterion {
 	}
 }
 
-// And creates a nother set of criterion the needs to apply to a query
+// And creates another set of criterion the needs to apply to a query
 func (q *Query) And(field string) *Criterion {
 	if !startsUpper(field) {
 		panic("The first letter of a field in a badgerhold query must be upper-case")
@@ -423,7 +423,7 @@ func (c *Criterion) HasSuffix(suffix string) *Query {
 // MatchFunc is a function used to test an arbitrary matching value in a query
 type MatchFunc func(ra *RecordAccess) (bool, error)
 
-// RecordAccess allows access to the current record, field or allows running a subquery within a
+// RecordAccess allows access to the current record, field or allows running a sub-query within a
 // MatchFunc
 type RecordAccess struct {
 	record interface{}
