@@ -1,7 +1,7 @@
 module github.com/timshannon/badgerhold/v3
 
 require (
-	github.com/dgraph-io/badger/v3 v3.2103.1
+	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/golang/glog v0.0.0-20210429001901-424d2337a529 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
