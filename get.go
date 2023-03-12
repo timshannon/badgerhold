@@ -8,7 +8,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v4"
 )
 
 // ErrNotFound is returned when no data is found for the given key
