@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v4"
 )
 
 const indexPrefix = "_bhIndex"

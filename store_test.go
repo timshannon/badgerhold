@@ -6,7 +6,6 @@ package badgerhold_test
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,7 +14,6 @@ import (
 	"runtime"
 	"testing"
 
-	v3 "github.com/timshannon/badgerhold/v3"
 	"github.com/timshannon/badgerhold/v4"
 )
 
@@ -134,34 +132,7 @@ func TestIssue115(t *testing.T) {
 	})
 }
 
-func TestIssue70TypePrefixCollisionWithV3(t *testing.T) {
-	testWrapV3(t, func(store *v3.Store, t *testing.T) {
-
-		type TestStruct struct {
-			Value int
-		}
-
-		type TestStructCollision struct {
-			Value int
-		}
-
-		for i := 0; i < 5; i++ {
-			ok(t, store.Insert(i, TestStruct{Value: i}))
-			ok(t, store.Insert(i, TestStructCollision{Value: i}))
-		}
-
-		query := v3.Where(v3.Key).In(0, 1, 2, 3, 4)
-		var results []TestStruct
-		err := store.Find(
-			&results,
-			query,
-		)
-
-		equals(t, errors.New("unexpected EOF"), err) // prefix error
-	})
-}
-
-func TestIssue70TypePrefixCollisionWithV4(t *testing.T) {
+func TestIssue70TypePrefixCollision(t *testing.T) {
 	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
 
 		type TestStruct struct {
@@ -226,26 +197,6 @@ func testWrapWithOpt(t *testing.T, opt badgerhold.Options, tests func(store *bad
 	os.RemoveAll(opt.Dir)
 }
 
-func testWrapV3(t *testing.T, tests func(store *v3.Store, t *testing.T)) {
-	testWrapV3WithOpt(t, testV3Options(), tests)
-}
-
-func testWrapV3WithOpt(t *testing.T, opt v3.Options, tests func(store *v3.Store, t *testing.T)) {
-	var err error
-	store, err := v3.Open(opt)
-	if err != nil {
-		t.Fatalf("Error opening %s: %s", opt.Dir, err)
-	}
-
-	if store == nil {
-		t.Fatalf("store is null!")
-	}
-
-	tests(store, t)
-	store.Close()
-	os.RemoveAll(opt.Dir)
-}
-
 type emptyLogger struct{}
 
 func (e emptyLogger) Errorf(msg string, data ...interface{})   {}
@@ -255,20 +206,6 @@ func (e emptyLogger) Debugf(msg string, data ...interface{})   {}
 
 func testOptions() badgerhold.Options {
 	opt := badgerhold.DefaultOptions
-	opt.Dir = tempdir()
-	opt.ValueDir = opt.Dir
-	opt.Logger = emptyLogger{}
-	// opt.ValueLogLoadingMode = options.FileIO // slower but less memory usage
-	// opt.TableLoadingMode = options.FileIO
-	// opt.NumMemtables = 1
-	// opt.NumLevelZeroTables = 1
-	// opt.NumLevelZeroTablesStall = 2
-	// opt.NumCompactors = 1
-	return opt
-}
-
-func testV3Options() v3.Options {
-	opt := v3.DefaultOptions
 	opt.Dir = tempdir()
 	opt.ValueDir = opt.Dir
 	opt.Logger = emptyLogger{}
