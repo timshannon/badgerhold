@@ -1263,10 +1263,22 @@ func (s *Store) forEach(tx *badger.Txn, query *Query, fn interface{}) error {
 		argType = argType.Elem()
 	}
 
+	keyField, hasKeyField := getKeyField(argType)
+
 	dataType := reflect.New(argType).Interface()
+	storer := s.newStorer(dataType)
 
 	return s.runQuery(tx, dataType, query, nil, query.skip, func(r *record) error {
+
+		if hasKeyField {
+			err := s.decodeKey(r.key, r.value.Elem().FieldByName(keyField.Name).Addr().Interface(), storer.Type())
+			if err != nil {
+				return err
+			}
+		}
+
 		out := fnVal.Call([]reflect.Value{r.value})
+
 		if len(out) != 1 {
 			return fmt.Errorf("foreach function does not return an error")
 		}

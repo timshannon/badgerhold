@@ -7,6 +7,7 @@ package badgerhold_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/timshannon/badgerhold/v4"
 )
@@ -46,5 +47,37 @@ func TestForEach(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func TestIssue105ForEachKeys(t *testing.T) {
+
+	type Person struct {
+		ID     uint64 `badgerhold:"key"`
+		Name   string
+		Gender string
+		Birth  time.Time
+	}
+
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		data := &Person{Name: "tester1"}
+		ok(t, store.Insert(badgerhold.NextSequence(), data))
+		equals(t, uint64(0), data.ID)
+
+		data = &Person{Name: "tester2"}
+		ok(t, store.Insert(badgerhold.NextSequence(), data))
+		equals(t, uint64(1), data.ID)
+
+		data = &Person{Name: "tester3"}
+		ok(t, store.Insert(badgerhold.NextSequence(), data))
+		equals(t, uint64(2), data.ID)
+
+		var id uint64 = 0
+
+		ok(t, store.ForEach(nil, func(record *Person) error {
+			assert(t, id == record.ID, record.Name+" incorrectly set key")
+			id++
+			return nil
+		}))
 	})
 }
