@@ -1295,3 +1295,119 @@ func TestFindWithStorerImplementation(t *testing.T) {
 		equals(t, *customStorerItem, results[0])
 	})
 }
+
+type queryMatchTest struct {
+	Key     int `badgerholdKey:"Key"`
+	Age     int
+	Color   string
+	Created time.Time
+}
+
+func TestComplexQueryMatch(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		item := queryMatchTest{
+			Key:     1,
+			Age:     2,
+			Color:   "color",
+			Created: time.UnixMicro(0),
+		}
+		query := badgerhold.Where("Key").Eq(1).And("Age").Eq(3).Or(badgerhold.Where("Key").Eq(2).And("Age").Eq(2))
+		if m, err := query.Matches(store, item); m || err != nil {
+			t.Errorf("wanted %+v to not match %+v, but got %v, %v", query, item, m, err)
+		}
+		query = badgerhold.Where("Key").Eq(1).And("Age").Eq(3).Or(badgerhold.Where("Key").Eq(1).And("Age").Eq(2))
+		if m, err := query.Matches(store, item); !m || err != nil {
+			t.Errorf("wanted %+v to match %+v, but got %v, %v", query, item, m, err)
+		}
+		query = badgerhold.Where("Key").Eq(1).And("Age").Eq(1).Or(badgerhold.Where("Key").Eq(2).And("Age").Eq(2).Or(badgerhold.Where("Key").Eq(1).And("Age").Eq(2)))
+		if m, err := query.Matches(store, item); !m || err != nil {
+			t.Errorf("wanted %+v to match %+v, but got %v, %v", query, item, m, err)
+		}
+	})
+}
+
+func TestQueryMatch(t *testing.T) {
+	testWrap(t, func(store *badgerhold.Store, t *testing.T) {
+		item := queryMatchTest{
+			Key:     1,
+			Age:     2,
+			Color:   "color",
+			Created: time.UnixMicro(0),
+		}
+		for _, tc := range []struct {
+			query     *badgerhold.Query
+			wantMatch bool
+			title     string
+		}{
+			{
+				query:     badgerhold.Where("Key").Eq(1),
+				wantMatch: true,
+				title:     "SingleKeyFieldMatch",
+			},
+			{
+				query:     badgerhold.Where("Key").Eq(2),
+				wantMatch: false,
+				title:     "SingleKeyFieldMismatch",
+			},
+			{
+				query:     badgerhold.Where("Age").Eq(2),
+				wantMatch: true,
+				title:     "SingleIntFieldMatch",
+			},
+			{
+				query:     badgerhold.Where("Age").Eq(3),
+				wantMatch: false,
+				title:     "SingleIntFieldMatch",
+			},
+			{
+				query:     badgerhold.Where("Key").Eq(1).And("Color").Eq("color"),
+				wantMatch: true,
+				title:     "MultiFieldAndMatch",
+			},
+			{
+				query:     badgerhold.Where("Key").Eq(1).And("Color").Eq("notcolor"),
+				wantMatch: false,
+				title:     "MultiFieldAndMismatch",
+			},
+			{
+				query:     badgerhold.Where("Key").Eq(2).Or(badgerhold.Where("Color").Eq("color")),
+				wantMatch: true,
+				title:     "MultiFieldOrMatch",
+			},
+			{
+				query:     badgerhold.Where("Key").Eq(2).Or(badgerhold.Where("Color").Eq("notcolor")),
+				wantMatch: false,
+				title:     "MultiFieldOrMismatch",
+			},
+			{
+				query:     badgerhold.Where("Created").Eq(time.UnixMicro(0)),
+				wantMatch: true,
+				title:     "SingleTimeFieldMatch",
+			},
+			{
+				query:     badgerhold.Where("Created").Eq(time.UnixMicro(1)),
+				wantMatch: false,
+				title:     "SingleTimeFieldMismatch",
+			},
+		} {
+			t.Run(tc.title+"StructReceiver", func(t *testing.T) {
+				gotMatch, err := tc.query.Matches(store, item)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if gotMatch != tc.wantMatch {
+					t.Errorf("wanted %+v to return %v for %+v, got %v", tc.query, tc.wantMatch, item, gotMatch)
+				}
+			})
+			t.Run(tc.title+"PtrReceiver", func(t *testing.T) {
+				gotMatch, err := tc.query.Matches(store, &item)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if gotMatch != tc.wantMatch {
+					t.Errorf("wanted %+v to return %v for %+v, got %v", tc.query, tc.wantMatch, &item, gotMatch)
+				}
+			})
+		}
+	})
+}
